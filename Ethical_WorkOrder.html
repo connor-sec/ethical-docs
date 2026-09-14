@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ethical Work Order</title>
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --dark: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --danger: #ef4444;
+      --success: #16a34a;
+      --warn: #d97706;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--dark);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    .app-header {
+      background: white;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: var(--dark);
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #3b82f6, #2563eb);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 16px;
+    }
+
+    .header-actions { display: flex; gap: 10px; align-items: center; }
+
+    .app-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .app-container { grid-template-columns: 1fr; }
+      .sidebar { position: static !important; }
+    }
+
+    .wo-card {
+      background: var(--card);
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+      padding: 32px;
+      border: 1px solid var(--border);
+    }
+
+    .logo-section { margin-bottom: 20px; }
+
+    .logo-upload {
+      width: 220px;
+      height: 140px;
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 13px;
+      background: #fafafa;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .logo-upload:hover { border-color: var(--primary); color: var(--primary); }
+    .logo-upload img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .logo-upload input { display: none; }
+
+    .logo-remove {
+      position: absolute;
+      top: 4px; right: 4px;
+      background: var(--danger);
+      color: white;
+      border: none;
+      width: 20px; height: 20px;
+      border-radius: 50%;
+      font-size: 12px;
+      cursor: pointer;
+      display: none;
+    }
+
+    .logo-upload.has-logo .logo-remove { display: block; }
+
+    .wo-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 24px;
+      gap: 20px;
+    }
+
+    .wo-title {
+      font-size: 1.85rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--dark);
+    }
+
+    #companyName {
+      margin-top: 8px;
+      width: 100%;
+      max-width: 280px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 15px;
+      font-weight: 600;
+      background: transparent;
+      font-family: inherit;
+      color: var(--dark);
+    }
+
+    #companyName:hover, #companyName:focus {
+      border-color: var(--border);
+      background: white;
+      outline: none;
+    }
+
+    .meta-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 220px;
+    }
+
+    .meta-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .meta-row label {
+      color: var(--muted);
+      width: 100px;
+      flex-shrink: 0;
+      font-size: 13px;
+    }
+
+    .meta-row input, .meta-row select {
+      flex: 1;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 14px;
+      background: transparent;
+      font-family: inherit;
+    }
+
+    .meta-row input:hover, .meta-row input:focus,
+    .meta-row select:hover, .meta-row select:focus {
+      border-color: var(--border);
+      background: white;
+      outline: none;
+    }
+
+    .section-label {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .field-input {
+      width: 100%;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 14px;
+      background: transparent;
+      font-family: inherit;
+    }
+
+    .field-input:hover, .field-input:focus {
+      border-color: var(--border);
+      background: white;
+      outline: none;
+    }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px 24px;
+      margin-bottom: 24px;
+    }
+
+    @media (max-width: 600px) {
+      .two-col { grid-template-columns: 1fr; }
+    }
+
+    .parties { margin-bottom: 24px; }
+
+    /* Addresses */
+    .addresses-section {
+      margin-bottom: 24px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .addresses-header {
+      background: #f1f5f9;
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .addresses-header h3 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--dark);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .btn-add {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .btn-add:hover { background: var(--primary-dark); }
+    .btn-add:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .addresses-list { padding: 12px; display: flex; flex-direction: column; gap: 10px; }
+
+    .address-item {
+      display: grid;
+      grid-template-columns: 120px 1fr auto;
+      gap: 10px;
+      align-items: start;
+      background: #fafafa;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .address-item input, .address-item textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 6px 8px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+
+    .address-item textarea { min-height: 54px; resize: vertical; }
+
+    .remove-btn {
+      background: transparent;
+      border: none;
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 18px;
+      padding: 4px 8px;
+      line-height: 1;
+    }
+
+    .remove-btn:hover { background: #fef2f2; border-radius: 4px; }
+
+    .addresses-empty {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 16px;
+    }
+
+    /* Line items */
+    .items-section { margin-bottom: 20px; }
+
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .items-table thead th {
+      background: var(--dark);
+      color: white;
+      text-align: left;
+      padding: 10px 12px;
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .items-table thead th:nth-child(2),
+    .items-table thead th:nth-child(3),
+    .items-table thead th:nth-child(4) {
+      text-align: right;
+      width: 90px;
+    }
+
+    .items-table thead th:nth-child(5) { width: 100px; text-align: center; }
+
+    .items-table tbody td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    .items-table input, .items-table select {
+      width: 100%;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      padding: 6px 8px;
+      font-size: 14px;
+      background: transparent;
+      font-family: inherit;
+    }
+
+    .items-table input:hover, .items-table input:focus,
+    .items-table select:hover, .items-table select:focus {
+      border-color: var(--border);
+      background: white;
+      outline: none;
+    }
+
+    .items-table .qty-input,
+    .items-table .rate-input,
+    .items-table .amount-input { text-align: right; }
+
+    .add-row-btn {
+      margin-top: 10px;
+      background: transparent;
+      border: 1px dashed var(--border);
+      color: var(--muted);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      width: 100%;
+    }
+
+    .add-row-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: #eff6ff;
+    }
+
+    /* Checklist */
+    .checklist-section {
+      margin-bottom: 24px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .checklist-header {
+      background: #f1f5f9;
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .checklist-header h3 {
+      font-size: 13px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .checklist-list { padding: 12px; display: flex; flex-direction: column; gap: 8px; }
+
+    .check-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 8px;
+      border-radius: 6px;
+    }
+
+    .check-item:hover { background: #f8fafc; }
+
+    .check-item input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+      accent-color: var(--primary);
+    }
+
+    .check-item input[type="text"] {
+      flex: 1;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 14px;
+      background: transparent;
+      font-family: inherit;
+    }
+
+    .check-item input[type="text"]:hover,
+    .check-item input[type="text"]:focus {
+      border-color: var(--border);
+      background: white;
+      outline: none;
+    }
+
+    .check-item.done input[type="text"] {
+      text-decoration: line-through;
+      color: var(--muted);
+    }
+
+    /* Notes / Work performed */
+    .notes-section { margin-top: 16px; margin-bottom: 16px; }
+
+    .notes-section textarea {
+      width: 100%;
+      min-height: 70px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 13px;
+      resize: vertical;
+      background: white;
+      font-family: inherit;
+      color: var(--dark);
+    }
+
+    .notes-section textarea:focus {
+      border-color: var(--primary);
+      outline: none;
+    }
+
+    /* Signature */
+    .signature-section {
+      margin-top: 28px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+
+    .sig-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px 24px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 600px) {
+      .sig-fields { grid-template-columns: 1fr; }
+    }
+
+    .sig-field label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: var(--muted);
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+
+    .sig-field input {
+      width: 100%;
+      border: 1px solid transparent;
+      border-bottom: 1px solid var(--border);
+      border-radius: 0;
+      padding: 6px 0;
+      font-size: 14px;
+      background: transparent;
+      font-family: inherit;
+    }
+
+    .sig-field input:hover, .sig-field input:focus {
+      border-bottom-color: var(--primary);
+      outline: none;
+    }
+
+    .signature-block {
+      display: grid;
+      grid-template-columns: 1fr 160px;
+      gap: 24px;
+      margin-top: 8px;
+      margin-bottom: 18px;
+    }
+
+    .sig-line {
+      border-bottom: 1px solid #334155;
+      height: 56px;
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      padding-bottom: 2px;
+    }
+
+    .sig-line::after {
+      content: "Signature";
+      position: absolute;
+      bottom: -20px;
+      left: 0;
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .sig-name {
+      font-family: "Segoe Script", "Brush Script MT", "Apple Chancery", "Snell Roundhand", cursive;
+      font-size: 36px;
+      font-weight: 700;
+      color: #0f172a;
+      line-height: 1;
+      padding-left: 4px;
+      min-height: 40px;
+      width: 100%;
+    }
+
+    .sig-date {
+      border-bottom: 1px solid #334155;
+      height: 56px;
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      padding-bottom: 2px;
+    }
+
+    .sig-date::after {
+      content: "Date";
+      position: absolute;
+      bottom: -20px;
+      left: 0;
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .sig-date input {
+      width: 100%;
+      border: none;
+      background: transparent;
+      font-size: 14px;
+      font-family: inherit;
+      padding: 0;
+      color: var(--dark);
+    }
+
+    .sig-date input:focus { outline: none; }
+
+    .certification-text {
+      font-size: 12.5px;
+      color: #475569;
+      line-height: 1.55;
+      max-width: 520px;
+      margin-top: 28px;
+      font-style: italic;
+    }
+
+    /* Sidebar */
+    .sidebar { position: sticky; top: 80px; }
+
+    .sidebar-card {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+    }
+
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+
+    .btn-secondary {
+      background: white;
+      color: var(--dark);
+      border: 1px solid var(--border);
+      margin-top: 10px;
+    }
+
+    .btn-secondary:hover { background: #f8fafc; }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: none;
+      margin-top: 8px;
+      font-weight: 500;
+    }
+
+    .btn-ghost:hover { color: var(--dark); }
+
+    .sidebar-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 16px 0;
+    }
+
+    .settings-group { margin-bottom: 14px; }
+
+    .settings-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .settings-group select,
+    .settings-group input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      background: white;
+    }
+
+    .settings-group select:focus,
+    .settings-group input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    #printContainer { display: none; }
+
+    @page { margin: 0.5in; size: letter; }
+
+    @media print {
+      body { background: white !important; margin: 0; padding: 0; }
+      .app-header, .app-container, .sidebar, .no-print { display: none !important; }
+      #printContainer { display: block !important; }
+
+      .wo-page {
+        width: 100%;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 16px 28px;
+        page-break-after: always;
+        page-break-inside: avoid;
+        break-after: page;
+        break-inside: avoid;
+        box-sizing: border-box;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        color: #0f172a;
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      .wo-page:last-child { page-break-after: auto; break-after: auto; }
+
+      .print-logo { max-height: 110px; max-width: 240px; margin-bottom: 16px; }
+
+      .print-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 20px;
+      }
+
+      .print-title { font-size: 24px; font-weight: 800; margin: 0; }
+
+      .print-meta { text-align: right; font-size: 12.5px; }
+      .print-meta div { margin-bottom: 3px; }
+      .print-meta strong {
+        display: inline-block;
+        min-width: 100px;
+        color: #64748b;
+        font-weight: 500;
+      }
+
+      .print-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #64748b;
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+
+      .print-value { white-space: pre-line; font-size: 13px; }
+
+      .print-address-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 10px 14px;
+        margin-bottom: 16px;
+      }
+
+      .print-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 16px;
+        font-size: 12.5px;
+      }
+
+      .print-table thead th {
+        background: #0f172a !important;
+        color: white !important;
+        text-align: left;
+        padding: 8px 10px;
+        font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .print-table thead th:nth-child(2),
+      .print-table thead th:nth-child(3),
+      .print-table thead th:nth-child(4) { text-align: right; }
+
+      .print-table tbody td {
+        padding: 7px 10px;
+        border-bottom: 1px solid #e2e8f0;
+      }
+
+      .print-table tbody td:nth-child(2),
+      .print-table tbody td:nth-child(3),
+      .print-table tbody td:nth-child(4) { text-align: right; }
+
+      .print-check-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 4px;
+        font-size: 12.5px;
+      }
+
+      .print-check-box {
+        width: 14px;
+        height: 14px;
+        border: 1.5px solid #334155;
+        display: inline-block;
+        text-align: center;
+        line-height: 12px;
+        font-size: 11px;
+      }
+
+      .print-sig-section {
+        border-top: 1px solid #e2e8f0;
+        padding-top: 16px;
+        margin-top: 12px;
+      }
+
+      .print-sig-fields {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px 24px;
+        margin-bottom: 16px;
+        font-size: 13px;
+      }
+
+      .print-signature-lines {
+        display: grid;
+        grid-template-columns: 1fr 140px;
+        gap: 24px;
+        margin-bottom: 16px;
+      }
+
+      .print-sig-line {
+        border-bottom: 1px solid #334155;
+        height: 48px;
+        position: relative;
+        display: flex;
+        align-items: flex-end;
+        padding-bottom: 2px;
+        font-size: 14px;
+      }
+
+      .print-sig-line::after {
+        content: attr(data-label);
+        position: absolute;
+        bottom: -16px;
+        left: 0;
+        font-size: 10px;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+      }
+
+      .print-sig-name {
+        font-family: "Segoe Script", "Brush Script MT", "Apple Chancery", "Snell Roundhand", cursive;
+        font-size: 32px;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1;
+      }
+
+      .print-cert {
+        font-size: 11.5px;
+        color: #475569;
+        font-style: italic;
+        line-height: 1.5;
+        max-width: 480px;
+      }
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="logo">
+      <div class="logo-icon">🔧</div>
+      <span>Ethical Work Order</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost" onclick="resetWO()" style="width:auto;padding:8px 12px;">Reset</button>
+    </div>
+  </header>
+
+  <div class="app-container">
+    <div class="wo-card" id="workOrder">
+      <!-- Logo -->
+      <div class="logo-section">
+        <div class="logo-upload" id="logoUpload" onclick="document.getElementById('logoInput').click()">
+          <span id="logoPlaceholder">+ Add Your Logo</span>
+          <img id="logoImg" class="hidden" alt="Logo" />
+          <button class="logo-remove" onclick="event.stopPropagation(); removeLogo()">×</button>
+          <input type="file" id="logoInput" accept="image/*" onchange="handleLogo(event)" />
+        </div>
+      </div>
+
+      <!-- Title + Meta -->
+      <div class="wo-header">
+        <div>
+          <div class="wo-title">WORK ORDER</div>
+          <input type="text" id="companyName" placeholder="Your Company Name" />
+        </div>
+        <div class="meta-fields">
+          <div class="meta-row">
+            <label>WO #</label>
+            <input type="text" id="woNumber" value="" />
+          </div>
+          <div class="meta-row">
+            <label>Date</label>
+            <input type="date" id="woDate" />
+          </div>
+          <div class="meta-row">
+            <label>Scheduled</label>
+            <input type="date" id="scheduledDate" />
+          </div>
+          <div class="meta-row">
+            <label>Priority</label>
+            <select id="priority">
+              <option value="Normal">Normal</option>
+              <option value="Low">Low</option>
+              <option value="High">High</option>
+              <option value="Emergency">Emergency</option>
+            </select>
+          </div>
+          <div class="meta-row">
+            <label>Status</label>
+            <select id="status">
+              <option value="Open">Open</option>
+              <option value="In Progress">In Progress</option>
+              <option value="Completed">Completed</option>
+              <option value="On Hold">On Hold</option>
+              <option value="Cancelled">Cancelled</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Client -->
+      <div class="parties">
+        <div class="section-label">Client / Company Name</div>
+        <input type="text" id="clientName" class="field-input" placeholder="Enter client or company name" oninput="syncClientName(this)" />
+      </div>
+
+      <!-- Requested by / Assigned to -->
+      <div class="two-col">
+        <div>
+          <div class="section-label">Requested By</div>
+          <input type="text" id="requestedBy" class="field-input" placeholder="Who requested this work?" />
+        </div>
+        <div>
+          <div class="section-label">Assigned To</div>
+          <input type="text" id="assignedTo" class="field-input" placeholder="Tech / crew name" />
+        </div>
+      </div>
+
+      <!-- Job type -->
+      <div style="margin-bottom:24px;">
+        <div class="section-label">Job Type</div>
+        <select id="jobType" class="field-input" style="max-width:280px;">
+          <option value="">Select type...</option>
+          <option value="Install">Install</option>
+          <option value="Repair">Repair</option>
+          <option value="Maintenance">Maintenance</option>
+          <option value="Inspection">Inspection</option>
+          <option value="Service Call">Service Call</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <!-- Service Addresses -->
+      <div class="addresses-section">
+        <div class="addresses-header">
+          <h3>Service Addresses / Locations</h3>
+          <button type="button" class="btn-add" id="addAddressBtn">+ Add Address</button>
+        </div>
+        <div class="addresses-list" id="addressesList">
+          <div class="addresses-empty">No service addresses yet. Click “+ Add Address” to add up to 10 locations.</div>
+        </div>
+      </div>
+
+      <!-- Line Items -->
+      <div class="items-section">
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Description</th>
+              <th>Qty</th>
+              <th>Rate</th>
+              <th>Amount</th>
+              <th>Type</th>
+              <th style="width:36px;"></th>
+            </tr>
+          </thead>
+          <tbody id="itemsBody"></tbody>
+        </table>
+        <button type="button" class="add-row-btn" onclick="addItem()">+ Add Line Item</button>
+      </div>
+
+      <!-- Checklist -->
+      <div class="checklist-section">
+        <div class="checklist-header">
+          <h3>Checklist</h3>
+          <button type="button" class="btn-add" id="addCheckBtn">+ Add Task</button>
+        </div>
+        <div class="checklist-list" id="checklistList">
+          <div class="addresses-empty" id="checklistEmpty">No tasks yet. Add checklist items for the job site.</div>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="notes-section">
+        <div class="section-label">Notes / Special Instructions</div>
+        <textarea id="notes" placeholder="Access codes, parking, safety notes, etc."></textarea>
+      </div>
+
+      <!-- Work performed -->
+      <div class="notes-section">
+        <div class="section-label">Work Performed</div>
+        <textarea id="workPerformed" placeholder="Describe work completed (fill when closing the WO)..."></textarea>
+      </div>
+
+      <!-- Customer acceptance -->
+      <div class="signature-section">
+        <div class="section-label" style="margin-bottom:14px;">Customer Acceptance</div>
+
+        <div class="sig-fields">
+          <div class="sig-field">
+            <label>POC Name</label>
+            <input type="text" id="pocName" placeholder="Point of Contact full name" oninput="updateSignaturePreview()" />
+          </div>
+          <div class="sig-field">
+            <label>Title</label>
+            <input type="text" id="pocTitle" placeholder="e.g. Facilities Manager" />
+          </div>
+          <div class="sig-field" style="grid-column: 1 / -1;">
+            <label>Client Name</label>
+            <input type="text" id="authClientName" placeholder="Company or individual accepting the work" oninput="syncClientName(this)" />
+          </div>
+        </div>
+
+        <div class="signature-block">
+          <div class="sig-line">
+            <div class="sig-name" id="sigPreview"></div>
+          </div>
+          <div class="sig-date">
+            <input type="date" id="sigDate" />
+          </div>
+        </div>
+
+        <p class="certification-text">
+          I hereby acknowledge that the work described above has been completed to my satisfaction.
+        </p>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-card">
+        <button class="btn btn-primary" onclick="downloadPDF()">↓ Print / Save as PDF</button>
+        <p style="font-size:11px;color:var(--muted);margin:6px 0 0 0;line-height:1.35;text-align:center;">
+          1 page per address only (max 10)
+        </p>
+        <button class="btn btn-secondary" onclick="saveDraft()">💾 Save Draft</button>
+        <button class="btn btn-ghost" onclick="loadDraft()">Load Last Draft</button>
+
+        <div class="sidebar-divider"></div>
+
+        <div class="settings-group">
+          <label>Addresses Used</label>
+          <div id="addressCount" style="font-size:14px;color:var(--muted);">0 / 10</div>
+        </div>
+
+        <div class="settings-group">
+          <label>Signature Font</label>
+          <select id="sigFont" onchange="applySignatureStyle()">
+            <option value='"Segoe Script", "Brush Script MT", "Apple Chancery", "Snell Roundhand", cursive'>Segoe Script</option>
+            <option value='"Brush Script MT", "Segoe Script", cursive'>Brush Script</option>
+            <option value='"Lucida Handwriting", "Apple Chancery", cursive'>Lucida Handwriting</option>
+            <option value='"Apple Chancery", "Snell Roundhand", cursive'>Apple Chancery</option>
+            <option value='"Comic Sans MS", cursive'>Comic Sans</option>
+            <option value='cursive'>Generic Cursive</option>
+          </select>
+        </div>
+
+        <div class="settings-group">
+          <label>Signature Size <span id="sigSizeLabel">36px</span></label>
+          <input type="range" id="sigSize" min="22" max="52" value="36" step="1" oninput="applySignatureStyle()" style="width:100%;" />
+        </div>
+
+        <p style="font-size:12px;color:var(--muted);margin-top:16px;line-height:1.4;">
+          Fully local work order tool. Nothing leaves your browser. One page per service address when printing.
+        </p>
+      </div>
+    </aside>
+  </div>
+
+  <div id="printContainer"></div>
+
+  <script>
+    let addresses = [];
+    let items = [];
+    let checklist = [];
+    let nextAddressId = 1;
+    let nextItemId = 1;
+    let nextCheckId = 1;
+    const MAX_ADDRESSES = 10;
+
+    function randomWONumber() {
+      return Math.floor(Math.random() * (20000 - 10000 + 1)) + 10000;
+    }
+
+    function syncClientName(el) {
+      var a = document.getElementById('clientName');
+      var b = document.getElementById('authClientName');
+      if (!a || !b) return;
+      if (el === a) b.value = a.value;
+      else a.value = b.value;
+    }
+
+    function updateSignaturePreview() {
+      var name = document.getElementById('pocName').value.trim();
+      document.getElementById('sigPreview').textContent = name;
+      applySignatureStyle();
+    }
+
+    function applySignatureStyle() {
+      var font = document.getElementById('sigFont').value;
+      var size = document.getElementById('sigSize').value + 'px';
+      var el = document.getElementById('sigPreview');
+      el.style.fontFamily = font;
+      el.style.fontSize = size;
+      document.getElementById('sigSizeLabel').textContent = size;
+    }
+
+    document.addEventListener('DOMContentLoaded', function() {
+      var today = new Date().toISOString().slice(0, 10);
+      document.getElementById('woDate').value = today;
+      document.getElementById('scheduledDate').value = today;
+      document.getElementById('sigDate').value = today;
+      document.getElementById('woNumber').value = randomWONumber();
+
+      var addBtn = document.getElementById('addAddressBtn');
+      if (addBtn) addBtn.addEventListener('click', function(e) { e.preventDefault(); addAddress(); });
+
+      var checkBtn = document.getElementById('addCheckBtn');
+      if (checkBtn) checkBtn.addEventListener('click', function(e) { e.preventDefault(); addCheckItem(); });
+
+      addItem();
+      updateAddressCount();
+      updateSignaturePreview();
+      applySignatureStyle();
+    });
+
+    function handleLogo(e) {
+      var file = e.target.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        var img = document.getElementById('logoImg');
+        img.src = ev.target.result;
+        img.classList.remove('hidden');
+        document.getElementById('logoPlaceholder').classList.add('hidden');
+        document.getElementById('logoUpload').classList.add('has-logo');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeLogo() {
+      document.getElementById('logoImg').src = '';
+      document.getElementById('logoImg').classList.add('hidden');
+      document.getElementById('logoPlaceholder').classList.remove('hidden');
+      document.getElementById('logoUpload').classList.remove('has-logo');
+      document.getElementById('logoInput').value = '';
+    }
+
+    // Addresses
+    function addAddress() {
+      if (addresses.length >= MAX_ADDRESSES) {
+        alert('Maximum of 10 addresses reached.');
+        return;
+      }
+      addresses.push({ id: nextAddressId++, label: '', address: '' });
+      renderAddresses();
+      updateAddressCount();
+    }
+
+    function removeAddress(id) {
+      addresses = addresses.filter(function(a) { return a.id !== id; });
+      renderAddresses();
+      updateAddressCount();
+    }
+
+    function updateAddress(id, field, value) {
+      for (var i = 0; i < addresses.length; i++) {
+        if (addresses[i].id === id) { addresses[i][field] = value; break; }
+      }
+    }
+
+    function renderAddresses() {
+      var list = document.getElementById('addressesList');
+      if (!list) return;
+      if (addresses.length === 0) {
+        list.innerHTML = '<div class="addresses-empty">No service addresses yet. Click “+ Add Address” to add up to 10 locations.</div>';
+        return;
+      }
+      var html = '';
+      for (var i = 0; i < addresses.length; i++) {
+        var addr = addresses[i];
+        html += '<div class="address-item">' +
+          '<input type="text" value="' + escapeHtml(addr.label) + '" placeholder="Label (e.g. DC, HQ)" oninput="updateAddress(' + addr.id + ', \'label\', this.value)" />' +
+          '<textarea placeholder="Street, City, State ZIP" oninput="updateAddress(' + addr.id + ', \'address\', this.value)">' + escapeHtml(addr.address) + '</textarea>' +
+          '<button class="remove-btn" title="Remove" onclick="removeAddress(' + addr.id + ')">×</button>' +
+          '</div>';
+      }
+      list.innerHTML = html;
+    }
+
+    function updateAddressCount() {
+      var el = document.getElementById('addressCount');
+      var btn = document.getElementById('addAddressBtn');
+      if (el) el.textContent = addresses.length + ' / ' + MAX_ADDRESSES;
+      if (btn) btn.disabled = addresses.length >= MAX_ADDRESSES;
+    }
+
+    // Line items
+    function addItem() {
+      items.push({ id: nextItemId++, description: '', qty: 1, rate: 0, type: 'Labor' });
+      renderItems();
+    }
+
+    function removeItem(id) {
+      if (items.length <= 1) return;
+      items = items.filter(function(i) { return i.id !== id; });
+      renderItems();
+    }
+
+    function updateItem(id, field, value) {
+      var item = null;
+      for (var i = 0; i < items.length; i++) {
+        if (items[i].id === id) { item = items[i]; break; }
+      }
+      if (!item) return;
+
+      if (field === 'amount') {
+        var amount = parseFloat(value) || 0;
+        var qty = item.qty || 1;
+        item.rate = Math.round((amount / qty) * 100) / 100;
+        var row = document.querySelector('tr[data-item-id="' + id + '"]');
+        if (row) {
+          var rateInput = row.querySelector('.rate-input');
+          if (rateInput) rateInput.value = item.rate;
+        }
+      } else if (field === 'qty' || field === 'rate') {
+        item[field] = parseFloat(value) || 0;
+        var row2 = document.querySelector('tr[data-item-id="' + id + '"]');
+        if (row2) {
+          var amountInput = row2.querySelector('.amount-input');
+          if (amountInput) amountInput.value = (item.qty * item.rate).toFixed(2);
+        }
+      } else {
+        item[field] = value;
+      }
+    }
+
+    function renderItems() {
+      var tbody = document.getElementById('itemsBody');
+      tbody.innerHTML = '';
+      items.forEach(function(item) {
+        var amount = (item.qty * item.rate).toFixed(2);
+        var tr = document.createElement('tr');
+        tr.setAttribute('data-item-id', item.id);
+        tr.innerHTML =
+          '<td><input type="text" value="' + escapeHtml(item.description) + '" placeholder="Description..." oninput="updateItem(' + item.id + ', \'description\', this.value)" /></td>' +
+          '<td><input class="qty-input" type="number" min="0" step="0.01" value="' + item.qty + '" oninput="updateItem(' + item.id + ', \'qty\', this.value)" /></td>' +
+          '<td><input class="rate-input" type="number" min="0" step="0.01" value="' + item.rate + '" oninput="updateItem(' + item.id + ', \'rate\', this.value)" /></td>' +
+          '<td><input class="amount-input" type="number" min="0" step="0.01" value="' + amount + '" oninput="updateItem(' + item.id + ', \'amount\', this.value)" style="text-align:right;width:100%;" /></td>' +
+          '<td><select onchange="updateItem(' + item.id + ', \'type\', this.value)">' +
+            '<option value="Labor"' + (item.type === 'Labor' ? ' selected' : '') + '>Labor</option>' +
+            '<option value="Material"' + (item.type === 'Material' ? ' selected' : '') + '>Material</option>' +
+            '<option value="Other"' + (item.type === 'Other' ? ' selected' : '') + '>Other</option>' +
+          '</select></td>' +
+          '<td><button class="remove-btn" onclick="removeItem(' + item.id + ')" title="Remove">×</button></td>';
+        tbody.appendChild(tr);
+      });
+    }
+
+    // Checklist
+    function addCheckItem() {
+      checklist.push({ id: nextCheckId++, text: '', done: false });
+      renderChecklist();
+    }
+
+    function removeCheckItem(id) {
+      checklist = checklist.filter(function(c) { return c.id !== id; });
+      renderChecklist();
+    }
+
+    function updateCheck(id, field, value) {
+      for (var i = 0; i < checklist.length; i++) {
+        if (checklist[i].id === id) {
+          if (field === 'done') checklist[i].done = !!value;
+          else checklist[i][field] = value;
+          break;
+        }
+      }
+      if (field === 'done') renderChecklist();
+    }
+
+    function renderChecklist() {
+      var list = document.getElementById('checklistList');
+      if (!list) return;
+      if (checklist.length === 0) {
+        list.innerHTML = '<div class="addresses-empty">No tasks yet. Add checklist items for the job site.</div>';
+        return;
+      }
+      var html = '';
+      for (var i = 0; i < checklist.length; i++) {
+        var c = checklist[i];
+        html += '<div class="check-item' + (c.done ? ' done' : '') + '">' +
+          '<input type="checkbox" ' + (c.done ? 'checked' : '') + ' onchange="updateCheck(' + c.id + ', \'done\', this.checked)" />' +
+          '<input type="text" value="' + escapeHtml(c.text) + '" placeholder="Task description..." oninput="updateCheck(' + c.id + ', \'text\', this.value)" />' +
+          '<button class="remove-btn" onclick="removeCheckItem(' + c.id + ')">×</button>' +
+          '</div>';
+      }
+      list.innerHTML = html;
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    // Print
+    function downloadPDF() {
+      var container = document.getElementById('printContainer');
+      container.innerHTML = '';
+
+      var data = {
+        woNumber: document.getElementById('woNumber').value || '1',
+        woDate: document.getElementById('woDate').value || '',
+        scheduledDate: document.getElementById('scheduledDate').value || '',
+        priority: document.getElementById('priority').value || 'Normal',
+        status: document.getElementById('status').value || 'Open',
+        companyName: document.getElementById('companyName').value || '',
+        clientName: document.getElementById('clientName').value || '',
+        requestedBy: document.getElementById('requestedBy').value || '',
+        assignedTo: document.getElementById('assignedTo').value || '',
+        jobType: document.getElementById('jobType').value || '',
+        notes: document.getElementById('notes').value || '',
+        workPerformed: document.getElementById('workPerformed').value || '',
+        pocName: document.getElementById('pocName').value || '',
+        pocTitle: document.getElementById('pocTitle').value || '',
+        authClientName: document.getElementById('authClientName').value || '',
+        sigDate: document.getElementById('sigDate').value || '',
+        sigFont: document.getElementById('sigFont').value,
+        sigSize: document.getElementById('sigSize').value + 'px',
+        logo: document.getElementById('logoImg').src || null,
+        items: items.slice(),
+        checklist: checklist.slice(),
+        addresses: addresses.slice()
+      };
+
+      var pages = (data.addresses || []).slice(0, 10);
+      pages = pages.filter(function(a) { return (a.label && a.label.trim()) || (a.address && a.address.trim()); });
+      if (pages.length === 0) pages = [{ label: '', address: '' }];
+
+      pages.forEach(function(addr, idx) {
+        var baseNum = parseInt(data.woNumber, 10) || 0;
+        var pageNum = pages.length > 1 ? (baseNum + idx) : data.woNumber;
+
+        var page = document.createElement('div');
+        page.className = 'wo-page';
+
+        var logoHtml = data.logo ? '<img class="print-logo" src="' + data.logo + '" alt="Logo" />' : '';
+
+        var rowsHtml = '';
+        data.items.forEach(function(item) {
+          var amount = (item.qty * item.rate).toFixed(2);
+          rowsHtml += '<tr><td>' + escapeHtml(item.description) + (item.type ? ' <span style="color:#64748b;font-size:11px;">(' + escapeHtml(item.type) + ')</span>' : '') +
+            '</td><td>' + item.qty + '</td><td>$' + parseFloat(item.rate).toFixed(2) + '</td><td>$' + amount + '</td></tr>';
+        });
+
+        var addressHtml = '';
+        if (addr.label || addr.address) {
+          addressHtml = '<div class="print-address-box"><div class="print-label">Service Address / Location</div>' +
+            '<div class="print-value"><strong>' + escapeHtml(addr.label) + '</strong>' +
+            (addr.label && addr.address ? '<br>' : '') + escapeHtml(addr.address) + '</div></div>';
+        }
+
+        var checkHtml = '';
+        if (data.checklist.length) {
+          checkHtml = '<div style="margin-bottom:16px;"><div class="print-label">Checklist</div>';
+          data.checklist.forEach(function(c) {
+            checkHtml += '<div class="print-check-item"><span class="print-check-box">' + (c.done ? '✓' : '') + '</span> ' + escapeHtml(c.text) + '</div>';
+          });
+          checkHtml += '</div>';
+        }
+
+        page.innerHTML =
+          logoHtml +
+          '<div class="print-header"><div><h1 class="print-title">WORK ORDER</h1>' +
+          (data.companyName ? '<div style="font-size:15px;font-weight:600;margin-top:4px;">' + escapeHtml(data.companyName) + '</div>' : '') +
+          '</div><div class="print-meta">' +
+          '<div><strong>WO #</strong> ' + escapeHtml(String(pageNum)) + '</div>' +
+          '<div><strong>Date</strong> ' + escapeHtml(data.woDate) + '</div>' +
+          '<div><strong>Scheduled</strong> ' + escapeHtml(data.scheduledDate) + '</div>' +
+          '<div><strong>Priority</strong> ' + escapeHtml(data.priority) + '</div>' +
+          '<div><strong>Status</strong> ' + escapeHtml(data.status) + '</div>' +
+          (data.jobType ? '<div><strong>Job Type</strong> ' + escapeHtml(data.jobType) + '</div>' : '') +
+          '</div></div>' +
+
+          '<div style="margin-bottom:12px;"><div class="print-label">Client / Company Name</div>' +
+          '<div class="print-value">' + (escapeHtml(data.clientName) || '—') + '</div></div>' +
+
+          '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">' +
+          '<div><div class="print-label">Requested By</div><div class="print-value">' + (escapeHtml(data.requestedBy) || '—') + '</div></div>' +
+          '<div><div class="print-label">Assigned To</div><div class="print-value">' + (escapeHtml(data.assignedTo) || '—') + '</div></div>' +
+          '</div>' +
+
+          addressHtml +
+
+          '<table class="print-table"><thead><tr><th>Description</th><th>Qty</th><th>Rate</th><th>Amount</th></tr></thead>' +
+          '<tbody>' + (rowsHtml || '<tr><td colspan="4">&nbsp;</td></tr>') + '</tbody></table>' +
+
+          checkHtml +
+
+          (data.notes ? '<div style="margin-bottom:12px;"><div class="print-label">Notes</div><div class="print-value">' + escapeHtml(data.notes) + '</div></div>' : '') +
+          (data.workPerformed ? '<div style="margin-bottom:12px;"><div class="print-label">Work Performed</div><div class="print-value">' + escapeHtml(data.workPerformed) + '</div></div>' : '') +
+
+          '<div class="print-sig-section">' +
+          '<div class="print-label" style="margin-bottom:10px;">Customer Acceptance</div>' +
+          '<div class="print-sig-fields">' +
+          '<div><div class="print-label">POC Name</div><div>' + (escapeHtml(data.pocName) || ' ') + '</div></div>' +
+          '<div><div class="print-label">Title</div><div>' + (escapeHtml(data.pocTitle) || ' ') + '</div></div>' +
+          '<div style="grid-column:1/-1;"><div class="print-label">Client Name</div><div>' + (escapeHtml(data.authClientName) || ' ') + '</div></div>' +
+          '</div>' +
+          '<div class="print-signature-lines">' +
+          '<div class="print-sig-line" data-label="Signature"><span class="print-sig-name" style="font-family:' + data.sigFont + ';font-size:' + data.sigSize + ';font-weight:700;">' + escapeHtml(data.pocName) + '</span></div>' +
+          '<div class="print-sig-line" data-label="Date"><span style="font-size:14px;">' + escapeHtml(data.sigDate) + '</span></div>' +
+          '</div>' +
+          '<p class="print-cert">I hereby acknowledge that the work described above has been completed to my satisfaction.</p>' +
+          '</div>';
+
+        container.appendChild(page);
+      });
+
+      var originalTitle = document.title;
+      document.title = ' ';
+      window.print();
+
+      var cleanup = function() {
+        container.innerHTML = '';
+        document.title = originalTitle;
+        window.removeEventListener('afterprint', cleanup);
+      };
+      window.addEventListener('afterprint', cleanup);
+      setTimeout(cleanup, 2000);
+    }
+
+    function saveDraft() {
+      var data = {
+        woNumber: document.getElementById('woNumber').value,
+        woDate: document.getElementById('woDate').value,
+        scheduledDate: document.getElementById('scheduledDate').value,
+        priority: document.getElementById('priority').value,
+        status: document.getElementById('status').value,
+        companyName: document.getElementById('companyName').value,
+        clientName: document.getElementById('clientName').value,
+        requestedBy: document.getElementById('requestedBy').value,
+        assignedTo: document.getElementById('assignedTo').value,
+        jobType: document.getElementById('jobType').value,
+        notes: document.getElementById('notes').value,
+        workPerformed: document.getElementById('workPerformed').value,
+        pocName: document.getElementById('pocName').value,
+        pocTitle: document.getElementById('pocTitle').value,
+        authClientName: document.getElementById('authClientName').value,
+        sigDate: document.getElementById('sigDate').value,
+        sigFont: document.getElementById('sigFont').value,
+        sigSize: document.getElementById('sigSize').value,
+        addresses: addresses,
+        items: items,
+        checklist: checklist,
+        logo: document.getElementById('logoImg').src || null
+      };
+      localStorage.setItem('ethicalWorkOrderDraft', JSON.stringify(data));
+      alert('Draft saved locally in your browser.');
+    }
+
+    function loadDraft() {
+      var raw = localStorage.getItem('ethicalWorkOrderDraft');
+      if (!raw) { alert('No saved draft found.'); return; }
+      try {
+        var data = JSON.parse(raw);
+        document.getElementById('woNumber').value = data.woNumber || randomWONumber();
+        document.getElementById('woDate').value = data.woDate || '';
+        document.getElementById('scheduledDate').value = data.scheduledDate || '';
+        document.getElementById('priority').value = data.priority || 'Normal';
+        document.getElementById('status').value = data.status || 'Open';
+        document.getElementById('companyName').value = data.companyName || '';
+        document.getElementById('clientName').value = data.clientName || '';
+        document.getElementById('requestedBy').value = data.requestedBy || '';
+        document.getElementById('assignedTo').value = data.assignedTo || '';
+        document.getElementById('jobType').value = data.jobType || '';
+        document.getElementById('notes').value = data.notes || '';
+        document.getElementById('workPerformed').value = data.workPerformed || '';
+        document.getElementById('pocName').value = data.pocName || '';
+        document.getElementById('pocTitle').value = data.pocTitle || '';
+        document.getElementById('authClientName').value = data.authClientName || '';
+        document.getElementById('sigDate').value = data.sigDate || '';
+        if (data.sigFont) document.getElementById('sigFont').value = data.sigFont;
+        if (data.sigSize) document.getElementById('sigSize').value = data.sigSize;
+        updateSignaturePreview();
+
+        addresses = data.addresses || [];
+        var maxA = 0;
+        addresses.forEach(function(a) { if (typeof a.id === 'number') maxA = Math.max(maxA, a.id); });
+        nextAddressId = maxA + 1;
+
+        items = data.items && data.items.length ? data.items : [{ id: 1, description: '', qty: 1, rate: 0, type: 'Labor' }];
+        var maxI = 0;
+        items.forEach(function(it) { if (typeof it.id === 'number') maxI = Math.max(maxI, it.id); });
+        nextItemId = maxI + 1;
+
+        checklist = data.checklist || [];
+        var maxC = 0;
+        checklist.forEach(function(c) { if (typeof c.id === 'number') maxC = Math.max(maxC, c.id); });
+        nextCheckId = maxC + 1;
+
+        if (data.logo) {
+          document.getElementById('logoImg').src = data.logo;
+          document.getElementById('logoImg').classList.remove('hidden');
+          document.getElementById('logoPlaceholder').classList.add('hidden');
+          document.getElementById('logoUpload').classList.add('has-logo');
+        }
+
+        renderAddresses();
+        renderItems();
+        renderChecklist();
+        updateAddressCount();
+        alert('Draft loaded.');
+      } catch (e) {
+        alert('Could not load draft.');
+      }
+    }
+
+    function resetWO() {
+      if (!confirm('Clear the entire work order and start over?')) return;
+      addresses = [];
+      items = [];
+      checklist = [];
+      nextAddressId = 1;
+      nextItemId = 1;
+      nextCheckId = 1;
+      document.getElementById('woNumber').value = randomWONumber();
+      document.getElementById('companyName').value = '';
+      document.getElementById('clientName').value = '';
+      document.getElementById('requestedBy').value = '';
+      document.getElementById('assignedTo').value = '';
+      document.getElementById('jobType').value = '';
+      document.getElementById('notes').value = '';
+      document.getElementById('workPerformed').value = '';
+      document.getElementById('priority').value = 'Normal';
+      document.getElementById('status').value = 'Open';
+      var today = new Date().toISOString().slice(0, 10);
+      document.getElementById('woDate').value = today;
+      document.getElementById('scheduledDate').value = today;
+      document.getElementById('pocName').value = '';
+      document.getElementById('pocTitle').value = '';
+      document.getElementById('authClientName').value = '';
+      document.getElementById('sigDate').value = today;
+      updateSignaturePreview();
+      removeLogo();
+      addItem();
+      renderAddresses();
+      renderChecklist();
+      updateAddressCount();
+    }
+  </script>
+</body>
+</html>

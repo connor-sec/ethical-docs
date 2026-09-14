@@ -1,0 +1,1723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ethical Invoice</title>
+  <style>
+    :root {
+      --primary: #0d9488;
+      --primary-dark: #0f766e;
+      --dark: #0f172a;
+      --muted: #64748b;
+      --border: #e2e8f0;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --danger: #ef4444;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: var(--bg);
+      color: var(--dark);
+      line-height: 1.5;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .app-header {
+      background: white;
+      border-bottom: 1px solid var(--border);
+      padding: 12px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 1.15rem;
+      color: var(--dark);
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #14b8a6, #0d9488);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 16px;
+    }
+
+    .header-actions { display: flex; gap: 10px; align-items: center; }
+
+    /* Layout */
+    .app-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+      display: grid;
+      grid-template-columns: 1fr 280px;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .app-container { grid-template-columns: 1fr; }
+      .sidebar { position: static !important; }
+    }
+
+    /* Invoice Card */
+    .invoice-card {
+      background: var(--card);
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.04);
+      padding: 32px;
+      border: 1px solid var(--border);
+    }
+
+    /* Logo upload */
+    .logo-section { margin-bottom: 24px; }
+
+    .logo-upload {
+      width: 220px;
+      height: 140px;
+      border: 2px dashed var(--border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 13px;
+      transition: all 0.2s;
+      background: #fafafa;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .logo-upload:hover { border-color: var(--primary); color: var(--primary); }
+    .logo-upload img { max-width: 100%; max-height: 100%; object-fit: contain; }
+    .logo-upload input { display: none; }
+
+    .logo-remove {
+      position: absolute;
+      top: 4px;
+      right: 4px;
+      background: var(--danger);
+      color: white;
+      border: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      font-size: 12px;
+      cursor: pointer;
+      display: none;
+    }
+
+    .logo-upload.has-logo .logo-remove { display: block; }
+
+    /* Header row */
+    .invoice-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 28px;
+      gap: 20px;
+    }
+
+    .invoice-title {
+      font-size: 2rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      color: var(--dark);
+    }
+
+    #companyName {
+      margin-top: 8px;
+      width: 100%;
+      max-width: 280px;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 6px 8px;
+      font-size: 15px;
+      font-weight: 600;
+      background: transparent;
+      font-family: inherit;
+      color: var(--dark);
+    }
+
+    #companyName:hover,
+    #companyName:focus {
+      border-color: var(--border);
+      background: white;
+      outline: none;
+    }
+
+    .meta-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 200px;
+    }
+
+    .meta-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+    }
+
+    .meta-row label {
+      color: var(--muted);
+      width: 90px;
+      flex-shrink: 0;
+      font-size: 13px;
+    }
+
+    .meta-row input {
+      flex: 1;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      padding: 4px 8px;
+      font-size: 14px;
+      background: transparent;
+    }
+
+    .meta-row input:hover,
+    .meta-row input:focus {
+      border-color: var(--border);
+      background: white;
+      outline: none;
+    }
+
+    /* Bill To */
+    .parties { margin-bottom: 28px; }
+
+    .party-block h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+
+    .party-block textarea,
+    .party-block input {
+      width: 100%;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 14px;
+      background: transparent;
+      font-family: inherit;
+    }
+
+    .party-block textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .party-block textarea:hover,
+    .party-block textarea:focus,
+    .party-block input:hover,
+    .party-block input:focus {
+      border-color: var(--border);
+      background: white;
+      outline: none;
+    }
+
+    /* Service Addresses */
+    .addresses-section {
+      margin-bottom: 28px;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+
+    .addresses-header {
+      background: #f1f5f9;
+      padding: 10px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .addresses-header h3 {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--dark);
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+
+    .btn-add-address {
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .btn-add-address:hover { background: var(--primary-dark); }
+    .btn-add-address:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    .addresses-list {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .address-item {
+      display: grid;
+      grid-template-columns: 120px 1fr auto;
+      gap: 10px;
+      align-items: start;
+      background: #fafafa;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+
+    .address-item input,
+    .address-item textarea {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 6px 8px;
+      font-size: 13px;
+      font-family: inherit;
+    }
+
+    .address-item textarea {
+      min-height: 54px;
+      resize: vertical;
+    }
+
+    .address-item .remove-addr {
+      background: transparent;
+      border: none;
+      color: var(--danger);
+      cursor: pointer;
+      font-size: 18px;
+      padding: 4px 8px;
+      line-height: 1;
+    }
+
+    .address-item .remove-addr:hover {
+      background: #fef2f2;
+      border-radius: 4px;
+    }
+
+    .addresses-empty {
+      text-align: center;
+      color: var(--muted);
+      font-size: 13px;
+      padding: 16px;
+    }
+
+    /* Line Items */
+    .items-section { margin-bottom: 24px; }
+
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .items-table thead th {
+      background: var(--dark);
+      color: white;
+      text-align: left;
+      padding: 10px 12px;
+      font-weight: 600;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .items-table thead th:nth-child(2),
+    .items-table thead th:nth-child(3),
+    .items-table thead th:nth-child(4) {
+      text-align: right;
+      width: 100px;
+    }
+
+    .items-table tbody td {
+      padding: 8px 12px;
+      border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+
+    .items-table tbody tr:hover { background: #f8fafc; }
+
+    .items-table input {
+      width: 100%;
+      border: 1px solid transparent;
+      border-radius: 4px;
+      padding: 6px 8px;
+      font-size: 14px;
+      background: transparent;
+      font-family: inherit;
+    }
+
+    .items-table input:hover,
+    .items-table input:focus {
+      border-color: var(--border);
+      background: white;
+      outline: none;
+    }
+
+    .items-table .qty-input,
+    .items-table .rate-input,
+    .items-table .amount-input { text-align: right; }
+
+    .items-table .amount-cell {
+      text-align: right;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .items-table .remove-row {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      font-size: 16px;
+      padding: 4px;
+      opacity: 0.6;
+    }
+
+    .items-table .remove-row:hover { color: var(--danger); opacity: 1; }
+
+    .add-item-btn {
+      margin-top: 10px;
+      background: transparent;
+      border: 1px dashed var(--border);
+      color: var(--muted);
+      padding: 8px 14px;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      width: 100%;
+      transition: all 0.15s;
+    }
+
+    .add-item-btn:hover {
+      border-color: var(--primary);
+      color: var(--primary);
+      background: #f0fdfa;
+    }
+
+    /* Totals */
+    .totals-section {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 28px;
+    }
+
+    .totals-box { width: 280px; }
+
+    .total-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 14px;
+    }
+
+    .total-row.grand {
+      border-top: 2px solid var(--dark);
+      margin-top: 8px;
+      padding-top: 12px;
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    .total-row input {
+      width: 80px;
+      text-align: right;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 3px 6px;
+      font-size: 13px;
+    }
+
+    /* Notes */
+    .notes-section { margin-top: 20px; }
+
+    .notes-section h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+
+    .notes-section textarea {
+      width: 100%;
+      min-height: 70px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-size: 13px;
+      resize: vertical;
+      background: white;
+      font-family: inherit;
+      color: var(--dark);
+    }
+
+    .notes-section textarea:hover,
+    .notes-section textarea:focus {
+      border-color: var(--primary);
+      outline: none;
+    }
+
+    /* Client Authorization / Signature */
+    .signature-section {
+      margin-top: 32px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+
+    .signature-section h3 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: var(--muted);
+      margin-bottom: 14px;
+      font-weight: 600;
+    }
+
+    .sig-fields {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px 24px;
+      margin-bottom: 20px;
+    }
+
+    @media (max-width: 600px) {
+      .sig-fields { grid-template-columns: 1fr; }
+    }
+
+    .sig-field label {
+      display: block;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      color: var(--muted);
+      margin-bottom: 4px;
+      font-weight: 600;
+    }
+
+    .sig-field input {
+      width: 100%;
+      border: 1px solid transparent;
+      border-bottom: 1px solid var(--border);
+      border-radius: 0;
+      padding: 6px 0;
+      font-size: 14px;
+      background: transparent;
+      font-family: inherit;
+    }
+
+    .sig-field input:hover,
+    .sig-field input:focus {
+      border-bottom-color: var(--primary);
+      outline: none;
+    }
+
+    .signature-block {
+      display: grid;
+      grid-template-columns: 1fr 160px;
+      gap: 24px;
+      margin-top: 8px;
+      margin-bottom: 18px;
+    }
+
+    .sig-line {
+      border-bottom: 1px solid #334155;
+      height: 56px;
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      padding-bottom: 2px;
+    }
+
+    .sig-line::after {
+      content: "Signature";
+      position: absolute;
+      bottom: -20px;
+      left: 0;
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .sig-name {
+      font-family: "Segoe Script", "Brush Script MT", "Apple Chancery", "Snell Roundhand", cursive;
+      font-size: 36px;
+      font-weight: 700;
+      color: #0f172a;
+      line-height: 1;
+      padding-left: 4px;
+      min-height: 40px;
+      width: 100%;
+    }
+
+    .sig-date {
+      border-bottom: 1px solid #334155;
+      height: 56px;
+      position: relative;
+      display: flex;
+      align-items: flex-end;
+      padding-bottom: 2px;
+    }
+
+    .sig-date::after {
+      content: "Date";
+      position: absolute;
+      bottom: -20px;
+      left: 0;
+      font-size: 11px;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .sig-date input {
+      width: 100%;
+      border: none;
+      background: transparent;
+      font-size: 14px;
+      font-family: inherit;
+      padding: 0;
+      color: var(--dark);
+    }
+
+    .sig-date input:focus {
+      outline: none;
+    }
+
+    .certification-text {
+      font-size: 12.5px;
+      color: #475569;
+      line-height: 1.55;
+      max-width: 520px;
+      margin-top: 28px;
+      font-style: italic;
+    }
+
+    /* Sidebar */
+    .sidebar { position: sticky; top: 80px; }
+
+    .sidebar-card {
+      background: white;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+    }
+
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-dark); }
+
+    .btn-secondary {
+      background: white;
+      color: var(--dark);
+      border: 1px solid var(--border);
+      margin-top: 10px;
+    }
+
+    .btn-secondary:hover { background: #f8fafc; }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: none;
+      margin-top: 8px;
+      font-weight: 500;
+    }
+
+    .btn-ghost:hover { color: var(--dark); }
+
+    .sidebar-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 16px 0;
+    }
+
+    .settings-group { margin-bottom: 14px; }
+
+    .settings-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .settings-group select,
+    .settings-group input {
+      width: 100%;
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 14px;
+      background: white;
+    }
+
+    .settings-group select:focus,
+    .settings-group input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+
+    /* Multi-page print container (hidden on screen) */
+    #printContainer { display: none; }
+
+    @page {
+      margin: 0.5in;
+      size: letter;
+    }
+
+    @media print {
+      body {
+        background: white !important;
+        margin: 0;
+        padding: 0;
+      }
+
+      .app-header,
+      .app-container,
+      .sidebar,
+      .no-print {
+        display: none !important;
+      }
+
+      #printContainer { display: block !important; }
+
+      .invoice-page {
+        width: 100%;
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 16px 28px;
+        page-break-after: always;
+        page-break-inside: avoid;
+        break-after: page;
+        break-inside: avoid;
+        box-sizing: border-box;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        color: #0f172a;
+        font-size: 13px;
+        line-height: 1.4;
+      }
+
+      .invoice-page:last-child {
+        page-break-after: auto;
+        break-after: auto;
+      }
+
+      .print-logo {
+        max-height: 110px;
+        max-width: 240px;
+        margin-bottom: 16px;
+      }
+
+      .print-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        margin-bottom: 24px;
+      }
+
+      .print-title {
+        font-size: 26px;
+        font-weight: 800;
+        letter-spacing: -0.5px;
+        margin: 0;
+      }
+
+      .print-meta { text-align: right; font-size: 12.5px; }
+      .print-meta div { margin-bottom: 3px; }
+      .print-meta strong {
+        display: inline-block;
+        min-width: 90px;
+        color: #64748b;
+        font-weight: 500;
+      }
+
+      .print-parties {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+        margin-bottom: 20px;
+      }
+
+      .print-label {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        color: #64748b;
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+
+      .print-value {
+        white-space: pre-line;
+        font-size: 13px;
+      }
+
+      .print-address-box {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 10px 14px;
+        margin-bottom: 20px;
+      }
+
+      .print-address-box .print-label { margin-bottom: 2px; }
+
+      .print-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 20px;
+        font-size: 12.5px;
+      }
+
+      .print-table thead th {
+        background: #0f172a !important;
+        color: white !important;
+        text-align: left;
+        padding: 8px 10px;
+        font-weight: 600;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+
+      .print-table thead th:nth-child(2),
+      .print-table thead th:nth-child(3),
+      .print-table thead th:nth-child(4) { text-align: right; }
+
+      .print-table tbody td {
+        padding: 7px 10px;
+        border-bottom: 1px solid #e2e8f0;
+      }
+
+      .print-table tbody td:nth-child(2),
+      .print-table tbody td:nth-child(3),
+      .print-table tbody td:nth-child(4) { text-align: right; }
+
+      .print-totals {
+        width: 240px;
+        margin-left: auto;
+        margin-bottom: 24px;
+      }
+
+      .print-total-row {
+        display: flex;
+        justify-content: space-between;
+        padding: 4px 0;
+        font-size: 13px;
+      }
+
+      .print-total-row.grand {
+        border-top: 2px solid #0f172a;
+        margin-top: 6px;
+        padding-top: 8px;
+        font-weight: 700;
+        font-size: 15px;
+      }
+
+      .print-notes {
+        margin-bottom: 24px;
+        font-size: 12px;
+        color: #475569;
+        white-space: pre-line;
+      }
+
+      .print-sig-section {
+        border-top: 1px solid #e2e8f0;
+        padding-top: 18px;
+        margin-top: 8px;
+      }
+
+      .print-sig-fields {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px 24px;
+        margin-bottom: 20px;
+        font-size: 13px;
+      }
+
+      .print-sig-fields .print-label { margin-bottom: 2px; }
+
+      .print-signature-lines {
+        display: grid;
+        grid-template-columns: 1fr 140px;
+        gap: 24px;
+        margin-bottom: 20px;
+      }
+
+      .print-sig-line {
+        border-bottom: 1px solid #334155;
+        height: 50px;
+        position: relative;
+        display: flex;
+        align-items: flex-end;
+        padding-bottom: 2px;
+        font-size: 14px;
+      }
+
+      .print-sig-line::after {
+        content: attr(data-label);
+        position: absolute;
+        bottom: -16px;
+        left: 0;
+        font-size: 10px;
+        color: #64748b;
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+      }
+
+      .print-sig-name {
+        font-family: "Segoe Script", "Brush Script MT", "Apple Chancery", "Snell Roundhand", cursive;
+        font-size: 34px;
+        font-weight: 700;
+        color: #0f172a;
+        line-height: 1;
+        padding-left: 2px;
+      }
+
+      .print-cert {
+        font-size: 11.5px;
+        color: #475569;
+        font-style: italic;
+        line-height: 1.5;
+        max-width: 480px;
+      }
+    }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <div class="logo">
+      <div class="logo-icon">📄</div>
+      <span>Ethical Invoice</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn btn-ghost" onclick="resetInvoice()" style="width:auto;padding:8px 12px;">Reset</button>
+    </div>
+  </header>
+
+  <div class="app-container">
+    <!-- Main Invoice -->
+    <div class="invoice-card" id="invoice">
+      <!-- Logo -->
+      <div class="logo-section">
+        <div class="logo-upload" id="logoUpload" onclick="document.getElementById('logoInput').click()">
+          <span id="logoPlaceholder">+ Add Your Logo</span>
+          <img id="logoImg" class="hidden" alt="Logo" />
+          <button class="logo-remove" onclick="event.stopPropagation(); removeLogo()">×</button>
+          <input type="file" id="logoInput" accept="image/*" onchange="handleLogo(event)" />
+        </div>
+      </div>
+
+      <!-- Title + Meta -->
+      <div class="invoice-header">
+        <div>
+          <div class="invoice-title">INVOICE</div>
+          <input type="text" id="companyName" placeholder="Your Company Name" />
+        </div>
+        <div class="meta-fields">
+          <div class="meta-row">
+            <label>Invoice #</label>
+            <input type="text" id="invoiceNumber" value="" />
+          </div>
+          <div class="meta-row">
+            <label>Date</label>
+            <input type="date" id="invoiceDate" />
+          </div>
+          <div class="meta-row">
+            <label>Due Date</label>
+            <input type="date" id="dueDate" />
+          </div>
+          <div class="meta-row">
+            <label>Payment Terms</label>
+            <input type="text" id="paymentTerms" placeholder="Net 30" />
+          </div>
+        </div>
+      </div>
+
+      <!-- Client / Company Name -->
+      <div class="parties">
+        <div class="party-block">
+          <h3>Client / Company Name</h3>
+          <input type="text" id="billTo" placeholder="Enter client or company name" oninput="syncClientName(this)" />
+        </div>
+      </div>
+
+      <!-- Service Addresses (1–10) -->
+      <div class="addresses-section">
+        <div class="addresses-header">
+          <h3>Service Addresses / Locations</h3>
+          <button type="button" class="btn-add-address" id="addAddressBtn">+ Add Address</button>
+        </div>
+        <div class="addresses-list" id="addressesList">
+          <div class="addresses-empty" id="addressesEmpty">
+            No service addresses yet. Click “+ Add Address” to add up to 10 locations.
+          </div>
+        </div>
+      </div>
+
+      <!-- Line Items -->
+      <div class="items-section">
+        <table class="items-table">
+          <thead>
+            <tr>
+              <th>Item / Description</th>
+              <th>Qty</th>
+              <th>Rate</th>
+              <th>Amount</th>
+              <th style="width:36px;"></th>
+            </tr>
+          </thead>
+          <tbody id="itemsBody"></tbody>
+        </table>
+        <button class="add-item-btn" onclick="addItem()">+ Add Line Item</button>
+      </div>
+
+      <!-- Totals -->
+      <div class="totals-section">
+        <div class="totals-box">
+          <div class="total-row">
+            <span>Subtotal</span>
+            <span id="subtotal">$0.00</span>
+          </div>
+          <div class="total-row">
+            <span>Tax (%)</span>
+            <input type="number" id="taxRate" value="0" min="0" step="0.01" oninput="recalculate()" />
+          </div>
+          <div class="total-row">
+            <span>Tax Amount</span>
+            <span id="taxAmount">$0.00</span>
+          </div>
+          <div class="total-row">
+            <span>Discount</span>
+            <input type="number" id="discount" value="0" min="0" step="0.01" oninput="recalculate()" />
+          </div>
+          <div class="total-row grand">
+            <span>Total Due</span>
+            <span id="grandTotal">$0.00</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Notes -->
+      <div class="notes-section">
+        <h3>Notes</h3>
+        <textarea id="notes" placeholder="Add notes or payment instructions...">Thank you for your business. Payment is due within the stated terms. Please include invoice number with payment.</textarea>
+      </div>
+
+      <!-- Client Authorization / Signature -->
+      <div class="signature-section">
+        <h3>Client Authorization</h3>
+
+        <div class="sig-fields">
+          <div class="sig-field">
+            <label>POC Name</label>
+            <input type="text" id="pocName" placeholder="Point of Contact full name" oninput="updateSignaturePreview()" />
+          </div>
+          <div class="sig-field">
+            <label>Title</label>
+            <input type="text" id="pocTitle" placeholder="e.g. Facilities Manager, IT Director" />
+          </div>
+          <div class="sig-field" style="grid-column: 1 / -1;">
+            <label>Client Name</label>
+            <input type="text" id="clientName" placeholder="Company or individual name authorizing this invoice" oninput="syncClientName(this)" />
+          </div>
+        </div>
+
+        <div class="signature-block">
+          <div class="sig-line">
+            <div class="sig-name" id="sigPreview"></div>
+          </div>
+          <div class="sig-date">
+            <input type="date" id="sigDate" />
+          </div>
+        </div>
+
+        <p class="certification-text">
+          I hereby certify that the information contained herein is true, accurate, and complete to the best of my knowledge and belief.
+        </p>
+      </div>
+    </div>
+
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-card">
+        <button class="btn btn-primary" onclick="downloadPDF()">
+          ↓ Print / Save as PDF
+        </button>
+        <p style="font-size:11px;color:var(--muted);margin:6px 0 0 0;line-height:1.35;text-align:center;">
+          1 page per address only (max 10)
+        </p>
+        <button class="btn btn-secondary" onclick="saveDraft()">
+          💾 Save Draft
+        </button>
+        <button class="btn btn-ghost" onclick="loadDraft()">
+          Load Last Draft
+        </button>
+
+        <div class="sidebar-divider"></div>
+
+        <div class="settings-group">
+          <label>Currency</label>
+          <select id="currency" onchange="recalculate()">
+            <option value="USD">USD ($)</option>
+            <option value="EUR">EUR (€)</option>
+            <option value="GBP">GBP (£)</option>
+            <option value="CAD">CAD (C$)</option>
+            <option value="AUD">AUD (A$)</option>
+            <option value="INR">INR (₹)</option>
+          </select>
+        </div>
+
+        <div class="settings-group">
+          <label>Addresses Used</label>
+          <div id="addressCount" style="font-size:14px;color:var(--muted);">0 / 10</div>
+        </div>
+
+        <div class="sidebar-divider"></div>
+
+        <div class="settings-group">
+          <label>Signature Font</label>
+          <select id="sigFont" onchange="applySignatureStyle()">
+            <option value='"Segoe Script", "Brush Script MT", "Apple Chancery", "Snell Roundhand", cursive'>Segoe Script</option>
+            <option value='"Brush Script MT", "Segoe Script", cursive'>Brush Script</option>
+            <option value='"Lucida Handwriting", "Apple Chancery", cursive'>Lucida Handwriting</option>
+            <option value='"Apple Chancery", "Snell Roundhand", cursive'>Apple Chancery</option>
+            <option value='"Comic Sans MS", cursive'>Comic Sans</option>
+            <option value='cursive'>Generic Cursive</option>
+          </select>
+        </div>
+
+        <div class="settings-group">
+          <label>Signature Size <span id="sigSizeLabel">36px</span></label>
+          <input type="range" id="sigSize" min="22" max="52" value="36" step="1" oninput="applySignatureStyle()" style="width:100%;" />
+        </div>
+
+        <p style="font-size:12px;color:var(--muted);margin-top:16px;line-height:1.4;">
+          Fully local — nothing leaves your browser. When you print, one invoice page is created for each service address (up to 10) as a single multi-page PDF.
+        </p>
+      </div>
+    </aside>
+  </div>
+
+  <!-- Generated multi-page print view (hidden on screen) -->
+  <div id="printContainer"></div>
+
+  <script>
+    // State
+    let addresses = [];
+    let items = [];
+    const MAX_ADDRESSES = 10;
+
+    const currencySymbols = {
+      USD: '$', EUR: '€', GBP: '£', CAD: 'C$', AUD: 'A$', INR: '₹'
+    };
+
+    // Keep top Client/Company Name and bottom Client Name in sync
+    function syncClientName(el) {
+      var billTo = document.getElementById('billTo');
+      var clientName = document.getElementById('clientName');
+      if (!billTo || !clientName) return;
+      if (el === billTo) {
+        clientName.value = billTo.value;
+      } else {
+        billTo.value = clientName.value;
+      }
+    }
+
+    // Live cursive signature preview + style
+    function updateSignaturePreview() {
+      const name = document.getElementById('pocName').value.trim();
+      document.getElementById('sigPreview').textContent = name;
+      applySignatureStyle();
+    }
+
+    function applySignatureStyle() {
+      const font = document.getElementById('sigFont').value;
+      const size = document.getElementById('sigSize').value + 'px';
+      const el = document.getElementById('sigPreview');
+      el.style.fontFamily = font;
+      el.style.fontSize = size;
+      document.getElementById('sigSizeLabel').textContent = size;
+    }
+
+    function randomInvoiceNumber() {
+      return Math.floor(Math.random() * (20000 - 10000 + 1)) + 10000;
+    }
+
+    // Init
+    document.addEventListener('DOMContentLoaded', () => {
+      const today = new Date().toISOString().slice(0, 10);
+      document.getElementById('invoiceDate').value = today;
+
+      const due = new Date();
+      due.setDate(due.getDate() + 30);
+      document.getElementById('dueDate').value = due.toISOString().slice(0, 10);
+
+      document.getElementById('invoiceNumber').value = randomInvoiceNumber();
+      document.getElementById('sigDate').value = today;
+
+      // Wire Add Address button (more reliable than inline onclick)
+      var addBtn = document.getElementById('addAddressBtn');
+      if (addBtn) {
+        addBtn.addEventListener('click', function(e) {
+          e.preventDefault();
+          addAddress();
+        });
+      }
+
+      addItem();
+      updateAddressCount();
+      updateSignaturePreview();
+      applySignatureStyle();
+    });
+
+    // Logo handling
+    function handleLogo(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const img = document.getElementById('logoImg');
+        img.src = ev.target.result;
+        img.classList.remove('hidden');
+        document.getElementById('logoPlaceholder').classList.add('hidden');
+        document.getElementById('logoUpload').classList.add('has-logo');
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function removeLogo() {
+      document.getElementById('logoImg').src = '';
+      document.getElementById('logoImg').classList.add('hidden');
+      document.getElementById('logoPlaceholder').classList.remove('hidden');
+      document.getElementById('logoUpload').classList.remove('has-logo');
+      document.getElementById('logoInput').value = '';
+    }
+
+    // Addresses (1–10)
+    let nextAddressId = 1;
+
+    function addAddress() {
+      if (addresses.length >= MAX_ADDRESSES) {
+        alert('Maximum of 10 addresses reached.');
+        return;
+      }
+      const id = nextAddressId++;
+      addresses.push({
+        id: id,
+        label: '',
+        address: ''
+      });
+      renderAddresses();
+      updateAddressCount();
+    }
+
+    function removeAddress(id) {
+      addresses = addresses.filter(function(a) { return a.id !== id; });
+      renderAddresses();
+      updateAddressCount();
+    }
+
+    function updateAddress(id, field, value) {
+      for (var i = 0; i < addresses.length; i++) {
+        if (addresses[i].id === id) {
+          addresses[i][field] = value;
+          break;
+        }
+      }
+    }
+
+    function renderAddresses() {
+      var list = document.getElementById('addressesList');
+      if (!list) return;
+
+      if (addresses.length === 0) {
+        list.innerHTML = '<div class="addresses-empty" id="addressesEmpty">No service addresses yet. Click “+ Add Address” to add up to 10 locations.</div>';
+        return;
+      }
+
+      var html = '';
+      for (var i = 0; i < addresses.length; i++) {
+        var addr = addresses[i];
+        html += '<div class="address-item">' +
+          '<input type="text" value="' + escapeHtml(addr.label) + '" placeholder="Label (e.g. DC, HQ)" ' +
+          'oninput="updateAddress(' + addr.id + ', \'label\', this.value)" />' +
+          '<textarea placeholder="Street, City, State ZIP" ' +
+          'oninput="updateAddress(' + addr.id + ', \'address\', this.value)">' + escapeHtml(addr.address) + '</textarea>' +
+          '<button class="remove-addr" title="Remove" onclick="removeAddress(' + addr.id + ')">×</button>' +
+          '</div>';
+      }
+      list.innerHTML = html;
+    }
+
+    function updateAddressCount() {
+      var countEl = document.getElementById('addressCount');
+      var btn = document.getElementById('addAddressBtn');
+      if (countEl) countEl.textContent = addresses.length + ' / ' + MAX_ADDRESSES;
+      if (btn) btn.disabled = addresses.length >= MAX_ADDRESSES;
+    }
+
+    // Line items
+    let nextItemId = 1;
+
+    function addItem() {
+      const id = nextItemId++;
+      items.push({ id, description: '', qty: 1, rate: 0 });
+      renderItems();
+      recalculate();
+    }
+
+    function removeItem(id) {
+      if (items.length <= 1) return;
+      items = items.filter(i => i.id !== id);
+      renderItems();
+      recalculate();
+    }
+
+    function updateItem(id, field, value) {
+      const item = items.find(i => i.id === id);
+      if (!item) return;
+
+      if (field === 'amount') {
+        // User edited Amount directly → adjust Rate so Qty × Rate = Amount
+        const amount = parseFloat(value) || 0;
+        const qty = item.qty || 1;
+        item.rate = Math.round((amount / qty) * 100) / 100;
+        // Update the rate input in the same row without full re-render
+        const row = document.querySelector(`tr[data-item-id="${id}"]`);
+        if (row) {
+          const rateInput = row.querySelector('.rate-input');
+          if (rateInput) rateInput.value = item.rate;
+        }
+      } else if (field === 'qty' || field === 'rate') {
+        item[field] = parseFloat(value) || 0;
+        // Update amount display in the same row
+        const row = document.querySelector(`tr[data-item-id="${id}"]`);
+        if (row) {
+          const amountInput = row.querySelector('.amount-input');
+          if (amountInput) amountInput.value = (item.qty * item.rate).toFixed(2);
+        }
+      } else {
+        item[field] = value;
+      }
+      recalculate();
+    }
+
+    function renderItems() {
+      const tbody = document.getElementById('itemsBody');
+      tbody.innerHTML = '';
+
+      items.forEach(item => {
+        const amount = (item.qty * item.rate).toFixed(2);
+        const tr = document.createElement('tr');
+        tr.setAttribute('data-item-id', item.id);
+        tr.innerHTML = `
+          <td><input type="text" value="${escapeHtml(item.description)}" placeholder="Description of item/service..."
+                     oninput="updateItem(${item.id}, 'description', this.value)" /></td>
+          <td><input class="qty-input" type="number" min="0" step="0.01" value="${item.qty}"
+                     oninput="updateItem(${item.id}, 'qty', this.value)" /></td>
+          <td><input class="rate-input" type="number" min="0" step="0.01" value="${item.rate}"
+                     oninput="updateItem(${item.id}, 'rate', this.value)" /></td>
+          <td class="amount-cell">
+            <input class="amount-input" type="number" min="0" step="0.01" value="${amount}"
+                   oninput="updateItem(${item.id}, 'amount', this.value)" style="text-align:right;width:100%;" />
+          </td>
+          <td><button class="remove-row" onclick="removeItem(${item.id})" title="Remove">×</button></td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    function recalculate() {
+      const subtotal = items.reduce((sum, i) => sum + (i.qty * i.rate), 0);
+      const taxRate = parseFloat(document.getElementById('taxRate').value) || 0;
+      const discount = parseFloat(document.getElementById('discount').value) || 0;
+      const taxAmount = subtotal * (taxRate / 100);
+      const grand = Math.max(0, subtotal + taxAmount - discount);
+
+      document.getElementById('subtotal').textContent = formatMoney(subtotal);
+      document.getElementById('taxAmount').textContent = formatMoney(taxAmount);
+      document.getElementById('grandTotal').textContent = formatMoney(grand);
+    }
+
+    function formatMoney(num) {
+      const cur = document.getElementById('currency').value;
+      const sym = currencySymbols[cur] || '$';
+      return sym + parseFloat(num).toFixed(2);
+    }
+
+    function escapeHtml(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // PDF / Print — generates one page per service address
+    function downloadPDF() {
+      const container = document.getElementById('printContainer');
+      container.innerHTML = '';
+
+      const data = {
+        invoiceNumber: document.getElementById('invoiceNumber').value || '1',
+        invoiceDate: document.getElementById('invoiceDate').value || '',
+        dueDate: document.getElementById('dueDate').value || '',
+        paymentTerms: document.getElementById('paymentTerms').value || '',
+        companyName: document.getElementById('companyName').value || '',
+        billTo: document.getElementById('billTo').value || '',
+        notes: document.getElementById('notes').value || '',
+        taxRate: parseFloat(document.getElementById('taxRate').value) || 0,
+        discount: parseFloat(document.getElementById('discount').value) || 0,
+        currency: document.getElementById('currency').value || 'USD',
+        pocName: document.getElementById('pocName').value || '',
+        pocTitle: document.getElementById('pocTitle').value || '',
+        clientName: document.getElementById('clientName').value || '',
+        sigDate: document.getElementById('sigDate').value || '',
+        sigFont: document.getElementById('sigFont').value,
+        sigSize: document.getElementById('sigSize').value + 'px',
+        logo: document.getElementById('logoImg').src || null,
+        items: items.slice(),
+        addresses: addresses.slice()
+      };
+
+      const subtotal = data.items.reduce((sum, i) => sum + (i.qty * i.rate), 0);
+      const taxAmount = subtotal * (data.taxRate / 100);
+      const grand = Math.max(0, subtotal + taxAmount - data.discount);
+      const sym = currencySymbols[data.currency] || '$';
+
+      // Only print one page per real address (max 10). If none, print exactly 1 page.
+      let pages = (data.addresses || []).slice(0, 10);
+      // Keep addresses that have at least a label or address text
+      pages = pages.filter(a => (a.label && a.label.trim()) || (a.address && a.address.trim()));
+      if (pages.length === 0) {
+        pages = [{ label: '', address: '' }]; // single invoice, no service address
+      }
+
+      pages.forEach((addr, idx) => {
+        const baseNum = parseInt(data.invoiceNumber, 10) || 0;
+        const pageNum = pages.length > 1
+          ? (baseNum + idx)
+          : data.invoiceNumber;
+
+        const page = document.createElement('div');
+        page.className = 'invoice-page';
+
+        let logoHtml = data.logo ? `<img class="print-logo" src="${data.logo}" alt="Logo" />` : '';
+
+        let rowsHtml = '';
+        data.items.forEach(item => {
+          const amount = (item.qty * item.rate).toFixed(2);
+          rowsHtml += `
+            <tr>
+              <td>${escapeHtml(item.description) || '&nbsp;'}</td>
+              <td>${item.qty}</td>
+              <td>${sym}${parseFloat(item.rate).toFixed(2)}</td>
+              <td>${sym}${amount}</td>
+            </tr>`;
+        });
+
+        let addressHtml = '';
+        if (addr.label || addr.address) {
+          addressHtml = `
+            <div class="print-address-box">
+              <div class="print-label">Service Address / Location</div>
+              <div class="print-value"><strong>${escapeHtml(addr.label)}</strong>${addr.label && addr.address ? '<br>' : ''}${escapeHtml(addr.address)}</div>
+            </div>`;
+        }
+
+        page.innerHTML = `
+          ${logoHtml}
+          <div class="print-header">
+            <div>
+              <h1 class="print-title">INVOICE</h1>
+              ${data.companyName ? `<div style="font-size:15px;font-weight:600;margin-top:4px;color:#0f172a;">${escapeHtml(data.companyName)}</div>` : ''}
+            </div>
+            <div class="print-meta">
+              <div><strong>Invoice #</strong> ${escapeHtml(pageNum)}</div>
+              <div><strong>Date</strong> ${escapeHtml(data.invoiceDate)}</div>
+              <div><strong>Due Date</strong> ${escapeHtml(data.dueDate)}</div>
+              ${data.paymentTerms ? `<div><strong>Terms</strong> ${escapeHtml(data.paymentTerms)}</div>` : ''}
+            </div>
+          </div>
+
+          <div class="print-parties">
+            <div>
+              <div class="print-label">Client / Company Name</div>
+              <div class="print-value">${escapeHtml(data.billTo) || '—'}</div>
+            </div>
+          </div>
+
+          ${addressHtml}
+
+          <table class="print-table">
+            <thead>
+              <tr>
+                <th>Item / Description</th>
+                <th>Qty</th>
+                <th>Rate</th>
+                <th>Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rowsHtml || '<tr><td colspan="4">&nbsp;</td></tr>'}
+            </tbody>
+          </table>
+
+          <div class="print-totals">
+            <div class="print-total-row">
+              <span>Subtotal</span>
+              <span>${sym}${subtotal.toFixed(2)}</span>
+            </div>
+            <div class="print-total-row">
+              <span>Tax (${data.taxRate}%)</span>
+              <span>${sym}${taxAmount.toFixed(2)}</span>
+            </div>
+            ${data.discount > 0 ? `
+            <div class="print-total-row">
+              <span>Discount</span>
+              <span>-${sym}${data.discount.toFixed(2)}</span>
+            </div>` : ''}
+            <div class="print-total-row grand">
+              <span>Total Due</span>
+              <span>${sym}${grand.toFixed(2)}</span>
+            </div>
+          </div>
+
+          ${data.notes ? `
+          <div class="print-notes">
+            <div class="print-label">Notes</div>
+            ${escapeHtml(data.notes)}
+          </div>` : ''}
+
+          <div class="print-sig-section">
+            <div class="print-label" style="margin-bottom:10px;">Client Authorization</div>
+            <div class="print-sig-fields">
+              <div>
+                <div class="print-label">POC Name</div>
+                <div>${escapeHtml(data.pocName) || ' '}</div>
+              </div>
+              <div>
+                <div class="print-label">Title</div>
+                <div>${escapeHtml(data.pocTitle) || ' '}</div>
+              </div>
+              <div style="grid-column:1/-1;">
+                <div class="print-label">Client Name</div>
+                <div>${escapeHtml(data.clientName) || ' '}</div>
+              </div>
+            </div>
+            <div class="print-signature-lines">
+              <div class="print-sig-line" data-label="Signature">
+                <span class="print-sig-name" style="font-family:${data.sigFont};font-size:${data.sigSize};font-weight:700;">${escapeHtml(data.pocName)}</span>
+              </div>
+              <div class="print-sig-line" data-label="Date">
+                <span style="font-size:14px;padding-bottom:2px;">${escapeHtml(data.sigDate)}</span>
+              </div>
+            </div>
+            <p class="print-cert">
+              I hereby certify that the information contained herein is true, accurate, and complete to the best of my knowledge and belief.
+            </p>
+          </div>
+        `;
+
+        container.appendChild(page);
+      });
+
+      // Temporarily blank the page title so browsers don't print the app name in headers
+
+      const originalTitle = document.title;
+      document.title = ' ';
+
+      window.print();
+
+      const cleanup = () => {
+        container.innerHTML = '';
+        document.title = originalTitle;
+        window.removeEventListener('afterprint', cleanup);
+      };
+      window.addEventListener('afterprint', cleanup);
+      setTimeout(cleanup, 2000);
+    }
+
+    // Draft save/load (localStorage)
+    function saveDraft() {
+      const data = {
+        invoiceNumber: document.getElementById('invoiceNumber').value,
+        invoiceDate: document.getElementById('invoiceDate').value,
+        dueDate: document.getElementById('dueDate').value,
+        paymentTerms: document.getElementById('paymentTerms').value,
+        companyName: document.getElementById('companyName').value,
+        billTo: document.getElementById('billTo').value,
+        notes: document.getElementById('notes').value,
+        taxRate: document.getElementById('taxRate').value,
+        discount: document.getElementById('discount').value,
+        currency: document.getElementById('currency').value,
+        pocName: document.getElementById('pocName').value,
+        pocTitle: document.getElementById('pocTitle').value,
+        clientName: document.getElementById('clientName').value,
+        sigDate: document.getElementById('sigDate').value,
+        sigFont: document.getElementById('sigFont').value,
+        sigSize: document.getElementById('sigSize').value,
+        addresses: addresses,
+        items: items,
+        logo: document.getElementById('logoImg').src || null
+      };
+      localStorage.setItem('localInvoiceDraft', JSON.stringify(data));
+      alert('Draft saved locally in your browser.');
+    }
+
+    function loadDraft() {
+      const raw = localStorage.getItem('localInvoiceDraft');
+      if (!raw) {
+        alert('No saved draft found.');
+        return;
+      }
+      try {
+        const data = JSON.parse(raw);
+        document.getElementById('invoiceNumber').value = data.invoiceNumber || '1';
+        document.getElementById('invoiceDate').value = data.invoiceDate || '';
+        document.getElementById('dueDate').value = data.dueDate || '';
+        document.getElementById('paymentTerms').value = data.paymentTerms || '';
+        document.getElementById('companyName').value = data.companyName || '';
+        document.getElementById('billTo').value = data.billTo || '';
+        document.getElementById('notes').value = data.notes || '';
+        document.getElementById('taxRate').value = data.taxRate || 0;
+        document.getElementById('discount').value = data.discount || 0;
+        document.getElementById('currency').value = data.currency || 'USD';
+        document.getElementById('pocName').value = data.pocName || '';
+        document.getElementById('pocTitle').value = data.pocTitle || '';
+        document.getElementById('clientName').value = data.clientName || '';
+        document.getElementById('sigDate').value = data.sigDate || '';
+        if (data.sigFont) document.getElementById('sigFont').value = data.sigFont;
+        if (data.sigSize) document.getElementById('sigSize').value = data.sigSize;
+        updateSignaturePreview();
+
+        addresses = data.addresses || [];
+        // Ensure address IDs are unique integers and nextAddressId is ahead of them
+        var maxAddrId = 0;
+        for (var ai = 0; ai < addresses.length; ai++) {
+          if (typeof addresses[ai].id !== 'number' || addresses[ai].id !== addresses[ai].id) {
+            addresses[ai].id = ++maxAddrId;
+          } else {
+            maxAddrId = Math.max(maxAddrId, addresses[ai].id);
+          }
+        }
+        nextAddressId = maxAddrId + 1;
+
+        items = data.items && data.items.length ? data.items : [{ id: 1, description: '', qty: 1, rate: 0 }];
+        var maxItemId = 0;
+        for (var ii = 0; ii < items.length; ii++) {
+          if (typeof items[ii].id !== 'number') items[ii].id = ++maxItemId;
+          else maxItemId = Math.max(maxItemId, items[ii].id);
+        }
+        nextItemId = maxItemId + 1;
+
+        if (data.logo) {
+          document.getElementById('logoImg').src = data.logo;
+          document.getElementById('logoImg').classList.remove('hidden');
+          document.getElementById('logoPlaceholder').classList.add('hidden');
+          document.getElementById('logoUpload').classList.add('has-logo');
+        }
+
+        renderAddresses();
+        renderItems();
+        recalculate();
+        updateAddressCount();
+        alert('Draft loaded.');
+      } catch (e) {
+        alert('Could not load draft.');
+      }
+    }
+
+    function resetInvoice() {
+      if (!confirm('Clear the entire invoice and start over?')) return;
+      addresses = [];
+      items = [];
+      nextAddressId = 1;
+      nextItemId = 1;
+      document.getElementById('invoiceNumber').value = randomInvoiceNumber();
+      document.getElementById('companyName').value = '';
+      document.getElementById('billTo').value = '';
+      document.getElementById('notes').value = '';
+      document.getElementById('taxRate').value = 0;
+      document.getElementById('discount').value = 0;
+      document.getElementById('paymentTerms').value = '';
+      // also reset date to today
+      const today = new Date().toISOString().slice(0, 10);
+      document.getElementById('invoiceDate').value = today;
+      const due = new Date();
+      due.setDate(due.getDate() + 30);
+      document.getElementById('dueDate').value = due.toISOString().slice(0, 10);
+      document.getElementById('pocName').value = '';
+      document.getElementById('pocTitle').value = '';
+      document.getElementById('clientName').value = '';
+      document.getElementById('sigDate').value = new Date().toISOString().slice(0, 10);
+      updateSignaturePreview();
+      removeLogo();
+      addItem();
+      renderAddresses();
+      recalculate();
+      updateAddressCount();
+    }
+  </script>
+</body>
+</html>
