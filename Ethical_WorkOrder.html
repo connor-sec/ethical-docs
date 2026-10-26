@@ -934,7 +934,7 @@
       <div class="two-col">
         <div>
           <div class="section-label">Requested By</div>
-          <input type="text" id="requestedBy" class="field-input" placeholder="Who requested this work?" />
+          <input type="text" id="requestedBy" class="field-input" placeholder="Who requested this work?" oninput="syncRequestedBy()" />
         </div>
         <div>
           <div class="section-label">Assigned To</div>
@@ -1104,6 +1104,16 @@
       if (!a || !b) return;
       if (el === a) b.value = a.value;
       else a.value = b.value;
+    }
+
+    // One-way: Requested By fills POC Name and the signature preview.
+    // Editing POC Name does not write back into Requested By.
+    function syncRequestedBy() {
+      var requested = document.getElementById('requestedBy');
+      var poc = document.getElementById('pocName');
+      if (!requested || !poc) return;
+      poc.value = requested.value;
+      updateSignaturePreview();
     }
 
     function updateSignaturePreview() {
