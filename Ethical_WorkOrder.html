@@ -1055,6 +1055,18 @@
         <div class="sidebar-divider"></div>
 
         <div class="settings-group">
+          <label>Currency</label>
+          <select id="currency">
+            <option value="USD">USD ($)</option>
+            <option value="EUR">EUR (€)</option>
+            <option value="GBP">GBP (£)</option>
+            <option value="CAD">CAD (C$)</option>
+            <option value="AUD">AUD (A$)</option>
+            <option value="INR">INR (₹)</option>
+          </select>
+        </div>
+
+        <div class="settings-group">
           <label>Addresses Used</label>
           <div id="addressCount" style="font-size:14px;color:var(--muted);">0 / 10</div>
         </div>
@@ -1093,6 +1105,231 @@
     let nextItemId = 1;
     let nextCheckId = 1;
     const MAX_ADDRESSES = 10;
+    var logoDataUrl = '';
+    var MAX_LOGO_CHARS = 900000;
+    var currencySymbols = { USD: '$', EUR: '€', GBP: '£', CAD: 'C$', AUD: 'A$', INR: '₹' };
+
+    function localISODate(date) {
+      var d = date || new Date();
+      var y = d.getFullYear();
+      var m = String(d.getMonth() + 1).padStart(2, '0');
+      var day = String(d.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + day;
+    }
+
+    function roundMoney(n) {
+      var x = Number(n);
+      if (!isFinite(x)) return 0;
+      return Math.round((x + Number.EPSILON) * 100) / 100;
+    }
+
+    function clampNonNegative(value) {
+      var x = parseFloat(value);
+      if (!isFinite(x) || x < 0) return 0;
+      return x;
+    }
+
+    function lineAmount(item) {
+      if (!item) return 0;
+      var qty = Number(item.qty) || 0;
+      if (qty === 0) return 0;
+      if (item.amount != null && item.amount !== '' && isFinite(Number(item.amount))) return roundMoney(item.amount);
+      return roundMoney(qty * (Number(item.rate) || 0));
+    }
+
+    function formatRateForInput(rate) {
+      return roundMoney(rate).toFixed(2);
+    }
+
+    function formatDocumentNumber(raw, index, pageCount) {
+      var value = String(raw == null ? '' : raw).trim();
+      var base = value === '' ? '1' : value;
+      if (pageCount <= 1) return base;
+      var match = base.match(/^(.*?)(\d+)$/);
+      if (match) {
+        var prefix = match[1];
+        var digits = match[2];
+        var next = String(parseInt(digits, 10) + index);
+        if (next.length < digits.length) next = next.padStart(digits.length, '0');
+        return prefix + next;
+      }
+      return base + '-' + (index + 1);
+    }
+
+    function signatureStyleAttr(font, size) {
+      var family = String(font || 'cursive').replace(/"/g, "'");
+      return 'font-family:' + family + ';font-size:' + size + ';font-weight:700;';
+    }
+
+    function applyPrintSignature(root, font, size) {
+      if (!root) return;
+      var el = root.querySelector('.print-sig-name');
+      if (!el) return;
+      el.style.fontFamily = font || 'cursive';
+      el.style.fontSize = size;
+      el.style.fontWeight = '700';
+    }
+
+    function resetControl(id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      if (el.tagName === 'SELECT') {
+        var index = 0;
+        for (var i = 0; i < el.options.length; i++) {
+          if (el.options[i].defaultSelected) { index = i; break; }
+        }
+        el.selectedIndex = index;
+        return;
+      }
+      if ('defaultValue' in el) el.value = el.defaultValue;
+    }
+
+    function normalizeItem(raw) {
+      var item = Object.assign({ description: '', qty: 1, rate: 0, amount: 0, type: 'Labor' }, raw || {});
+      item.qty = clampNonNegative(item.qty == null ? 1 : item.qty);
+      item.rate = clampNonNegative(item.rate);
+      if (item.qty === 0) item.amount = 0;
+      else if (item.amount == null || item.amount === '') item.amount = roundMoney(item.qty * item.rate);
+      else item.amount = roundMoney(clampNonNegative(item.amount));
+      if (!item.type) item.type = 'Labor';
+      return item;
+    }
+
+    function prepareLogoDataUrl(dataUrl) {
+      return new Promise(function(resolve, reject) {
+        if (!dataUrl || String(dataUrl).indexOf('data:image/') !== 0) {
+          resolve('');
+          return;
+        }
+        if (dataUrl.length <= MAX_LOGO_CHARS) {
+          resolve(dataUrl);
+          return;
+        }
+        var img = new Image();
+        img.onload = function() {
+          try {
+            var w = img.naturalWidth || img.width;
+            var h = img.naturalHeight || img.height;
+            if (!w || !h) { resolve(dataUrl); return; }
+            var maxDim = 1000;
+            var scale = Math.min(1, maxDim / Math.max(w, h));
+            w = Math.max(1, Math.round(w * scale));
+            h = Math.max(1, Math.round(h * scale));
+            var canvas = document.createElement('canvas');
+            var draw = function(width, height, quality) {
+              canvas.width = width;
+              canvas.height = height;
+              var ctx = canvas.getContext('2d');
+              ctx.fillStyle = '#ffffff';
+              ctx.fillRect(0, 0, width, height);
+              ctx.drawImage(img, 0, 0, width, height);
+              return canvas.toDataURL('image/jpeg', quality);
+            };
+            var quality = 0.85;
+            var out = draw(w, h, quality);
+            while (out.length > MAX_LOGO_CHARS && quality > 0.45) {
+              quality = Math.round((quality - 0.1) * 100) / 100;
+              out = draw(w, h, quality);
+            }
+            var guard = 0;
+            while (out.length > MAX_LOGO_CHARS && w > 180 && guard < 6) {
+              guard += 1;
+              var prevW = w;
+              w = Math.max(180, Math.round(w * 0.7));
+              h = Math.max(1, Math.round(h * (w / prevW)));
+              out = draw(w, h, Math.max(quality, 0.5));
+            }
+            resolve(out);
+          } catch (err) {
+            resolve(dataUrl);
+          }
+        };
+        img.onerror = function() { reject(new Error('unreadable image')); };
+        img.src = dataUrl;
+      });
+    }
+
+    function applyLogoSrc(dataUrl) {
+      logoDataUrl = (dataUrl && String(dataUrl).indexOf('data:image/') === 0) ? String(dataUrl) : '';
+      var img = document.getElementById('logoImg');
+      if (!img) return;
+      if (logoDataUrl) {
+        img.src = logoDataUrl;
+        img.classList.remove('hidden');
+        document.getElementById('logoPlaceholder').classList.add('hidden');
+        document.getElementById('logoUpload').classList.add('has-logo');
+      } else {
+        img.removeAttribute('src');
+        img.classList.add('hidden');
+        document.getElementById('logoPlaceholder').classList.remove('hidden');
+        document.getElementById('logoUpload').classList.remove('has-logo');
+      }
+    }
+
+    function currentLogoForSave() {
+      return logoDataUrl || '';
+    }
+
+    function printHtmlDocument(bodyHtml) {
+      var stale = document.querySelectorAll('iframe[data-print-frame]');
+      for (var i = 0; i < stale.length; i++) stale[i].remove();
+
+      var iframe = document.createElement('iframe');
+      iframe.setAttribute('data-print-frame', '');
+      iframe.setAttribute('title', 'Print document');
+      iframe.style.cssText = 'position:fixed;left:-10000px;top:0;width:800px;height:1100px;border:0;';
+      document.body.appendChild(iframe);
+
+      var frameWin = iframe.contentWindow;
+      var frameDoc = frameWin.document;
+      var css = '';
+      var styleNodes = document.querySelectorAll('style');
+      for (var s = 0; s < styleNodes.length; s++) css += styleNodes[s].textContent;
+      frameDoc.open();
+      frameDoc.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title> </title><style>' + css + '</style></head><body>' + bodyHtml + '</body></html>');
+      frameDoc.close();
+
+      var srcSigs = document.querySelectorAll('#printContainer .print-sig-name');
+      var dstSigs = frameDoc.querySelectorAll('.print-sig-name');
+      for (var n = 0; n < dstSigs.length && n < srcSigs.length; n++) {
+        dstSigs[n].style.fontFamily = srcSigs[n].style.fontFamily;
+        dstSigs[n].style.fontSize = srcSigs[n].style.fontSize;
+        dstSigs[n].style.fontWeight = '700';
+      }
+
+      var done = false;
+      var originalTitle = document.title;
+      document.title = ' ';
+      var titleTimer = 0;
+      function finish() {
+        if (done) return;
+        done = true;
+        frameWin.removeEventListener('afterprint', finish);
+        window.removeEventListener('afterprint', finish);
+        window.removeEventListener('focus', onFocus);
+        window.removeEventListener('blur', onBlur);
+        if (titleTimer) clearTimeout(titleTimer);
+        document.title = originalTitle;
+        if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        var container = document.getElementById('printContainer');
+        if (container) container.innerHTML = '';
+      }
+      function onFocus() { setTimeout(finish, 1000); }
+      function onBlur() {
+        window.removeEventListener('blur', onBlur);
+        window.addEventListener('focus', onFocus);
+      }
+      frameWin.addEventListener('afterprint', finish);
+      window.addEventListener('afterprint', finish);
+      window.addEventListener('blur', onBlur);
+      titleTimer = setTimeout(function() {
+        if (document.title === ' ') document.title = originalTitle;
+      }, 60000);
+
+      var parentPrint = window.print;
+      if (parentPrint && String(parentPrint).indexOf('[native code]') === -1) parentPrint.call(frameWin);
+      else frameWin.print();
+    }
 
     function randomWONumber() {
       return Math.floor(Math.random() * (20000 - 10000 + 1)) + 10000;
@@ -1132,7 +1369,7 @@
     }
 
     document.addEventListener('DOMContentLoaded', function() {
-      var today = new Date().toISOString().slice(0, 10);
+      var today = localISODate(new Date());
       document.getElementById('woDate').value = today;
       document.getElementById('scheduledDate').value = today;
       document.getElementById('sigDate').value = today;
@@ -1151,25 +1388,31 @@
     });
 
     function handleLogo(e) {
-      var file = e.target.files[0];
+      var file = e.target.files && e.target.files[0];
       if (!file) return;
+      if (file.type && file.type.indexOf('image/') !== 0) {
+        alert('Please choose an image file.');
+        e.target.value = '';
+        return;
+      }
       var reader = new FileReader();
       reader.onload = function(ev) {
-        var img = document.getElementById('logoImg');
-        img.src = ev.target.result;
-        img.classList.remove('hidden');
-        document.getElementById('logoPlaceholder').classList.add('hidden');
-        document.getElementById('logoUpload').classList.add('has-logo');
+        prepareLogoDataUrl(ev.target.result).then(function(dataUrl) {
+          applyLogoSrc(dataUrl);
+        }).catch(function() {
+          alert('Could not read that image. Please try a different file.');
+        });
+      };
+      reader.onerror = function() {
+        alert('Could not read that image. Please try a different file.');
       };
       reader.readAsDataURL(file);
     }
 
     function removeLogo() {
-      document.getElementById('logoImg').src = '';
-      document.getElementById('logoImg').classList.add('hidden');
-      document.getElementById('logoPlaceholder').classList.remove('hidden');
-      document.getElementById('logoUpload').classList.remove('has-logo');
-      document.getElementById('logoInput').value = '';
+      applyLogoSrc('');
+      var input = document.getElementById('logoInput');
+      if (input) input.value = '';
     }
 
     // Addresses
@@ -1223,7 +1466,7 @@
 
     // Line items
     function addItem() {
-      items.push({ id: nextItemId++, description: '', qty: 1, rate: 0, type: 'Labor' });
+      items.push({ id: nextItemId++, description: '', qty: 1, rate: 0, amount: 0, type: 'Labor' });
       renderItems();
     }
 
@@ -1240,22 +1483,31 @@
       }
       if (!item) return;
 
+      var row = document.querySelector('tr[data-item-id="' + id + '"]');
+      var rateInput = row ? row.querySelector('.rate-input') : null;
+      var amountInput = row ? row.querySelector('.amount-input') : null;
+      var qtyInput = row ? row.querySelector('.qty-input') : null;
+
       if (field === 'amount') {
-        var amount = parseFloat(value) || 0;
-        var qty = item.qty || 1;
-        item.rate = Math.round((amount / qty) * 100) / 100;
-        var row = document.querySelector('tr[data-item-id="' + id + '"]');
-        if (row) {
-          var rateInput = row.querySelector('.rate-input');
-          if (rateInput) rateInput.value = item.rate;
+        if (item.qty > 0) {
+          var amount = roundMoney(clampNonNegative(value));
+          item.amount = amount;
+          item.rate = amount / item.qty;
+          if (rateInput) rateInput.value = formatRateForInput(item.rate);
+          if (amountInput && (Number(value) < 0 || (value !== '' && roundMoney(value) !== amount))) {
+            amountInput.value = amount.toFixed(2);
+          }
+        } else {
+          item.amount = 0;
+          if (amountInput) amountInput.value = '0.00';
         }
       } else if (field === 'qty' || field === 'rate') {
-        item[field] = parseFloat(value) || 0;
-        var row2 = document.querySelector('tr[data-item-id="' + id + '"]');
-        if (row2) {
-          var amountInput = row2.querySelector('.amount-input');
-          if (amountInput) amountInput.value = (item.qty * item.rate).toFixed(2);
-        }
+        var clamped = clampNonNegative(value);
+        item[field] = clamped;
+        var edited = field === 'qty' ? qtyInput : rateInput;
+        if (edited && Number(value) < 0) edited.value = String(clamped);
+        item.amount = roundMoney(item.qty * item.rate);
+        if (amountInput) amountInput.value = item.amount.toFixed(2);
       } else {
         item[field] = value;
       }
@@ -1265,13 +1517,14 @@
       var tbody = document.getElementById('itemsBody');
       tbody.innerHTML = '';
       items.forEach(function(item) {
-        var amount = (item.qty * item.rate).toFixed(2);
+        if (item.amount == null) item.amount = roundMoney((Number(item.qty) || 0) * (Number(item.rate) || 0));
+        var amount = lineAmount(item).toFixed(2);
         var tr = document.createElement('tr');
         tr.setAttribute('data-item-id', item.id);
         tr.innerHTML =
           '<td><input type="text" value="' + escapeHtml(item.description) + '" placeholder="Description..." oninput="updateItem(' + item.id + ', \'description\', this.value)" /></td>' +
           '<td><input class="qty-input" type="number" min="0" step="0.01" value="' + item.qty + '" oninput="updateItem(' + item.id + ', \'qty\', this.value)" /></td>' +
-          '<td><input class="rate-input" type="number" min="0" step="0.01" value="' + item.rate + '" oninput="updateItem(' + item.id + ', \'rate\', this.value)" /></td>' +
+          '<td><input class="rate-input" type="number" min="0" step="0.01" value="' + formatRateForInput(item.rate) + '" oninput="updateItem(' + item.id + ', \'rate\', this.value)" /></td>' +
           '<td><input class="amount-input" type="number" min="0" step="0.01" value="' + amount + '" oninput="updateItem(' + item.id + ', \'amount\', this.value)" style="text-align:right;width:100%;" /></td>' +
           '<td><select onchange="updateItem(' + item.id + ', \'type\', this.value)">' +
             '<option value="Labor"' + (item.type === 'Labor' ? ' selected' : '') + '>Labor</option>' +
@@ -1325,7 +1578,7 @@
     }
 
     function escapeHtml(str) {
-      if (!str) return '';
+      if (str === null || str === undefined) return '';
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
@@ -1353,19 +1606,20 @@
         sigDate: document.getElementById('sigDate').value || '',
         sigFont: document.getElementById('sigFont').value,
         sigSize: document.getElementById('sigSize').value + 'px',
-        logo: document.getElementById('logoImg').src || null,
-        items: items.slice(),
+        currency: document.getElementById('currency').value || 'USD',
+        logo: currentLogoForSave(),
+        items: items.map(normalizeItem),
         checklist: checklist.slice(),
         addresses: addresses.slice()
       };
+      var sym = currencySymbols[data.currency] || '$';
 
       var pages = (data.addresses || []).slice(0, 10);
       pages = pages.filter(function(a) { return (a.label && a.label.trim()) || (a.address && a.address.trim()); });
       if (pages.length === 0) pages = [{ label: '', address: '' }];
 
       pages.forEach(function(addr, idx) {
-        var baseNum = parseInt(data.woNumber, 10) || 0;
-        var pageNum = pages.length > 1 ? (baseNum + idx) : data.woNumber;
+        var pageNum = formatDocumentNumber(data.woNumber, idx, pages.length);
 
         var page = document.createElement('div');
         page.className = 'wo-page';
@@ -1374,9 +1628,10 @@
 
         var rowsHtml = '';
         data.items.forEach(function(item) {
-          var amount = (item.qty * item.rate).toFixed(2);
+          var amount = lineAmount(item).toFixed(2);
+          var rateText = roundMoney(item.rate).toFixed(2);
           rowsHtml += '<tr><td>' + escapeHtml(item.description) + (item.type ? ' <span style="color:#64748b;font-size:11px;">(' + escapeHtml(item.type) + ')</span>' : '') +
-            '</td><td>' + item.qty + '</td><td>$' + parseFloat(item.rate).toFixed(2) + '</td><td>$' + amount + '</td></tr>';
+            '</td><td class="print-qty">' + item.qty + '</td><td class="print-rate">' + sym + rateText + '</td><td class="print-amount">' + sym + amount + '</td></tr>';
         });
 
         var addressHtml = '';
@@ -1400,7 +1655,7 @@
           '<div class="print-header"><div><h1 class="print-title">WORK ORDER</h1>' +
           (data.companyName ? '<div style="font-size:15px;font-weight:600;margin-top:4px;">' + escapeHtml(data.companyName) + '</div>' : '') +
           '</div><div class="print-meta">' +
-          '<div><strong>WO #</strong> ' + escapeHtml(String(pageNum)) + '</div>' +
+          '<div><strong>WO #</strong> <span class="print-doc-number">' + escapeHtml(pageNum) + '</span></div>' +
           '<div><strong>Date</strong> ' + escapeHtml(data.woDate) + '</div>' +
           '<div><strong>Scheduled</strong> ' + escapeHtml(data.scheduledDate) + '</div>' +
           '<div><strong>Priority</strong> ' + escapeHtml(data.priority) + '</div>' +
@@ -1434,26 +1689,17 @@
           '<div style="grid-column:1/-1;"><div class="print-label">Client Name</div><div>' + (escapeHtml(data.authClientName) || ' ') + '</div></div>' +
           '</div>' +
           '<div class="print-signature-lines">' +
-          '<div class="print-sig-line" data-label="Signature"><span class="print-sig-name" style="font-family:' + data.sigFont + ';font-size:' + data.sigSize + ';font-weight:700;">' + escapeHtml(data.pocName) + '</span></div>' +
+          '<div class="print-sig-line" data-label="Signature"><span class="print-sig-name" style="' + signatureStyleAttr(data.sigFont, data.sigSize) + '">' + escapeHtml(data.pocName) + '</span></div>' +
           '<div class="print-sig-line" data-label="Date"><span style="font-size:14px;">' + escapeHtml(data.sigDate) + '</span></div>' +
           '</div>' +
           '<p class="print-cert">I hereby acknowledge that the work described above has been completed to my satisfaction.</p>' +
           '</div>';
 
+        applyPrintSignature(page, data.sigFont, data.sigSize);
         container.appendChild(page);
       });
 
-      var originalTitle = document.title;
-      document.title = ' ';
-      window.print();
-
-      var cleanup = function() {
-        container.innerHTML = '';
-        document.title = originalTitle;
-        window.removeEventListener('afterprint', cleanup);
-      };
-      window.addEventListener('afterprint', cleanup);
-      setTimeout(cleanup, 2000);
+      printHtmlDocument(container.innerHTML);
     }
 
     function saveDraft() {
@@ -1476,13 +1722,30 @@
         sigDate: document.getElementById('sigDate').value,
         sigFont: document.getElementById('sigFont').value,
         sigSize: document.getElementById('sigSize').value,
+        currency: document.getElementById('currency').value,
         addresses: addresses,
-        items: items,
+        items: items.map(normalizeItem),
         checklist: checklist,
-        logo: document.getElementById('logoImg').src || null
+        logo: currentLogoForSave()
       };
-      localStorage.setItem('ethicalWorkOrderDraft', JSON.stringify(data));
-      alert('Draft saved locally in your browser.');
+      var write = function(payload) {
+        try {
+          localStorage.setItem('ethicalWorkOrderDraft', JSON.stringify(payload));
+        } catch (err) {
+          alert('Could not save this draft. Browser storage is full, usually because the logo is too large. Remove the logo or choose a smaller image, then try again.');
+          return;
+        }
+        alert('Draft saved locally in your browser.');
+      };
+      if (data.logo && data.logo.length > MAX_LOGO_CHARS) {
+        prepareLogoDataUrl(data.logo).then(function(smaller) {
+          applyLogoSrc(smaller);
+          data.logo = currentLogoForSave();
+          write(data);
+        }).catch(function() { write(data); });
+        return;
+      }
+      write(data);
     }
 
     function loadDraft() {
@@ -1500,8 +1763,9 @@
         document.getElementById('requestedBy').value = data.requestedBy || '';
         document.getElementById('assignedTo').value = data.assignedTo || '';
         document.getElementById('jobType').value = data.jobType || '';
-        document.getElementById('notes').value = data.notes || '';
-        document.getElementById('workPerformed').value = data.workPerformed || '';
+        document.getElementById('notes').value = data.notes != null ? data.notes : '';
+        document.getElementById('workPerformed').value = data.workPerformed != null ? data.workPerformed : '';
+        document.getElementById('currency').value = data.currency || 'USD';
         document.getElementById('pocName').value = data.pocName || '';
         document.getElementById('pocTitle').value = data.pocTitle || '';
         document.getElementById('authClientName').value = data.authClientName || '';
@@ -1515,7 +1779,7 @@
         addresses.forEach(function(a) { if (typeof a.id === 'number') maxA = Math.max(maxA, a.id); });
         nextAddressId = maxA + 1;
 
-        items = data.items && data.items.length ? data.items : [{ id: 1, description: '', qty: 1, rate: 0, type: 'Labor' }];
+        items = data.items && data.items.length ? data.items.map(normalizeItem) : [{ id: 1, description: '', qty: 1, rate: 0, amount: 0, type: 'Labor' }];
         var maxI = 0;
         items.forEach(function(it) { if (typeof it.id === 'number') maxI = Math.max(maxI, it.id); });
         nextItemId = maxI + 1;
@@ -1525,12 +1789,8 @@
         checklist.forEach(function(c) { if (typeof c.id === 'number') maxC = Math.max(maxC, c.id); });
         nextCheckId = maxC + 1;
 
-        if (data.logo) {
-          document.getElementById('logoImg').src = data.logo;
-          document.getElementById('logoImg').classList.remove('hidden');
-          document.getElementById('logoPlaceholder').classList.add('hidden');
-          document.getElementById('logoUpload').classList.add('has-logo');
-        }
+        if (data.logo && String(data.logo).indexOf('data:image/') === 0) applyLogoSrc(data.logo);
+        else removeLogo();
 
         renderAddresses();
         renderItems();
@@ -1551,21 +1811,24 @@
       nextItemId = 1;
       nextCheckId = 1;
       document.getElementById('woNumber').value = randomWONumber();
-      document.getElementById('companyName').value = '';
-      document.getElementById('clientName').value = '';
-      document.getElementById('requestedBy').value = '';
-      document.getElementById('assignedTo').value = '';
-      document.getElementById('jobType').value = '';
-      document.getElementById('notes').value = '';
-      document.getElementById('workPerformed').value = '';
-      document.getElementById('priority').value = 'Normal';
-      document.getElementById('status').value = 'Open';
-      var today = new Date().toISOString().slice(0, 10);
+      resetControl('companyName');
+      resetControl('clientName');
+      resetControl('requestedBy');
+      resetControl('assignedTo');
+      resetControl('jobType');
+      resetControl('notes');
+      resetControl('workPerformed');
+      resetControl('priority');
+      resetControl('status');
+      resetControl('currency');
+      resetControl('sigFont');
+      resetControl('sigSize');
+      var today = localISODate(new Date());
       document.getElementById('woDate').value = today;
       document.getElementById('scheduledDate').value = today;
-      document.getElementById('pocName').value = '';
-      document.getElementById('pocTitle').value = '';
-      document.getElementById('authClientName').value = '';
+      resetControl('pocName');
+      resetControl('pocTitle');
+      resetControl('authClientName');
       document.getElementById('sigDate').value = today;
       updateSignaturePreview();
       removeLogo();

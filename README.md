@@ -43,7 +43,7 @@ Shared by both tools:
 - **100% client-side** — No backend, no accounts, no telemetry. Your data never leaves the browser.
 - **Multi-address support** — Add up to **10 service locations / job sites**. Printing automatically generates one page per address, with sequential document numbers.
 - **Professional layout** — Clean, modern design suitable for real engagements.
-- **Logo upload** — Add a company logo that appears on the printed pages.
+- **Logo upload** — Add a company logo that appears on the printed pages. Very large images are scaled down so a draft still fits in browser storage.
 - **Signature block** — Point-of-contact name, title, authorizing party, date, and a customizable cursive-style signature (font + size).
 - **Notes** — Free-text area for terms, access codes, parking instructions, safety notes, or other context.
 - **Local drafts** — Save and reload drafts using browser `localStorage`.
@@ -58,6 +58,7 @@ Shared by both tools:
 **Ethical Work Order** adds:
 
 - **Work order fields** — WO number, date, priority, status, job type, scheduled date, assigned technician/crew, and requested-by.
+- **Multi-currency** — Same currency list as the invoice. Printed rates and amounts use the selected symbol.
 - **Checklist** — Task items with checkboxes for on-site work tracking.
 - **Work performed** — Free-text area to describe completed work when closing the order.
 
@@ -78,7 +79,7 @@ Shared by both tools:
 
 - **0 addresses** → one page is generated.
 - **1–10 addresses** → one page is generated **per address**.
-- Document numbers can auto-increment across pages when multiple addresses are present.
+- Document numbers can auto-increment across pages when multiple addresses are present. A prefix and leading zeros are kept (`INV-1042` then `INV-1043`, `001042` then `001043`). A number with no trailing digits gets a `-1`, `-2` suffix.
 - Each page clearly shows the corresponding **Service Address / Location**.
 
 This is especially useful for multi-site or multi-campus engagements.
@@ -101,6 +102,18 @@ This is especially useful for multi-site or multi-campus engagements.
 ## History
 
 This repo merges two previously separate projects, `ethical-invoice` and `Ethical-WorkOrder`, which shared almost all of their code and documentation.
+
+## Tests
+
+The HTML files stay self-contained and have no build step. Browser tests (dev-only) live in `tests/` and run with Playwright:
+
+```bash
+npm install
+npx playwright install chromium
+npm test
+```
+
+GitHub Actions runs the same suite on every push and pull request.
 
 ## License
 

@@ -1,0 +1,11 @@
+{
+  "name": "ethical-docs",
+  "private": true,
+  "description": "Offline HTML invoice and work-order generators. The pages have no runtime dependencies; Playwright is for tests only.",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1"
+  }
+}
