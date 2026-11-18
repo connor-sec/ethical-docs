@@ -1170,6 +1170,265 @@
       USD: '$', EUR: '€', GBP: '£', CAD: 'C$', AUD: 'A$', INR: '₹'
     };
 
+    // Data-URL logo only. Reading img.src after a cleared attribute can be the page URL.
+    let logoDataUrl = '';
+    const MAX_LOGO_CHARS = 900000;
+
+    function localISODate(date) {
+      const d = date || new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return y + '-' + m + '-' + day;
+    }
+
+    function addLocalDays(date, days) {
+      const d = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      d.setDate(d.getDate() + days);
+      return d;
+    }
+
+    function roundMoney(n) {
+      const x = Number(n);
+      if (!isFinite(x)) return 0;
+      return Math.round((x + Number.EPSILON) * 100) / 100;
+    }
+
+    function clampNonNegative(value) {
+      const x = parseFloat(value);
+      if (!isFinite(x) || x < 0) return 0;
+      return x;
+    }
+
+    // Line total the user sees. Prefer the stored amount so a typed 100
+    // does not become 99.99 after the rate is shown rounded to cents.
+    function lineAmount(item) {
+      if (!item) return 0;
+      const qty = Number(item.qty) || 0;
+      if (qty === 0) return 0;
+      if (item.amount != null && item.amount !== '' && isFinite(Number(item.amount))) {
+        return roundMoney(item.amount);
+      }
+      return roundMoney(qty * (Number(item.rate) || 0));
+    }
+
+    function formatRateForInput(rate) {
+      return roundMoney(rate).toFixed(2);
+    }
+
+    function sumLineAmounts(itemList) {
+      const cents = itemList.reduce((sum, item) => sum + Math.round(lineAmount(item) * 100), 0);
+      return cents / 100;
+    }
+
+    function computeTotals(itemList, taxRate, discount) {
+      const subtotal = sumLineAmounts(itemList);
+      const taxAmount = roundMoney(subtotal * ((parseFloat(taxRate) || 0) / 100));
+      const disc = parseFloat(discount) || 0;
+      const grand = Math.max(0, roundMoney(subtotal + taxAmount - disc));
+      return { subtotal: subtotal, taxAmount: taxAmount, discount: disc, grand: grand };
+    }
+
+    // INV-1042 → INV-1043, 001042 → 001043. No trailing digits → DRAFT-1, DRAFT-2.
+    function formatDocumentNumber(raw, index, pageCount) {
+      const value = String(raw == null ? '' : raw).trim();
+      const base = value === '' ? '1' : value;
+      if (pageCount <= 1) return base;
+      const match = base.match(/^(.*?)(\d+)$/);
+      if (match) {
+        const prefix = match[1];
+        const digits = match[2];
+        let next = String(parseInt(digits, 10) + index);
+        if (next.length < digits.length) next = next.padStart(digits.length, '0');
+        return prefix + next;
+      }
+      return base + '-' + (index + 1);
+    }
+
+    // Option values contain double quotes. Those break a double-quoted style attribute,
+    // so the print rule falls back to the stylesheet font. Single quotes are valid CSS.
+    function signatureStyleAttr(font, size) {
+      const family = String(font || 'cursive').replace(/"/g, "'");
+      return 'font-family:' + family + ';font-size:' + size + ';font-weight:700;';
+    }
+
+    function applyPrintSignature(root, font, size) {
+      if (!root) return;
+      const el = root.querySelector('.print-sig-name');
+      if (!el) return;
+      el.style.fontFamily = font || 'cursive';
+      el.style.fontSize = size;
+      el.style.fontWeight = '700';
+    }
+
+    function resetControl(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      if (el.tagName === 'SELECT') {
+        let index = 0;
+        for (let i = 0; i < el.options.length; i++) {
+          if (el.options[i].defaultSelected) {
+            index = i;
+            break;
+          }
+        }
+        el.selectedIndex = index;
+        return;
+      }
+      if ('defaultValue' in el) el.value = el.defaultValue;
+    }
+
+    function prepareLogoDataUrl(dataUrl) {
+      return new Promise(function(resolve, reject) {
+        if (!dataUrl || String(dataUrl).indexOf('data:image/') !== 0) {
+          resolve('');
+          return;
+        }
+        if (dataUrl.length <= MAX_LOGO_CHARS) {
+          resolve(dataUrl);
+          return;
+        }
+        const img = new Image();
+        img.onload = function() {
+          try {
+            let w = img.naturalWidth || img.width;
+            let h = img.naturalHeight || img.height;
+            if (!w || !h) {
+              resolve(dataUrl);
+              return;
+            }
+            const maxDim = 1000;
+            const scale = Math.min(1, maxDim / Math.max(w, h));
+            w = Math.max(1, Math.round(w * scale));
+            h = Math.max(1, Math.round(h * scale));
+            const canvas = document.createElement('canvas');
+            const draw = function(width, height, quality) {
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              ctx.fillStyle = '#ffffff';
+              ctx.fillRect(0, 0, width, height);
+              ctx.drawImage(img, 0, 0, width, height);
+              return canvas.toDataURL('image/jpeg', quality);
+            };
+            let quality = 0.85;
+            let out = draw(w, h, quality);
+            while (out.length > MAX_LOGO_CHARS && quality > 0.45) {
+              quality = Math.round((quality - 0.1) * 100) / 100;
+              out = draw(w, h, quality);
+            }
+            let guard = 0;
+            while (out.length > MAX_LOGO_CHARS && w > 180 && guard < 6) {
+              guard += 1;
+              const prevW = w;
+              w = Math.max(180, Math.round(w * 0.7));
+              h = Math.max(1, Math.round(h * (w / prevW)));
+              out = draw(w, h, Math.max(quality, 0.5));
+            }
+            resolve(out);
+          } catch (err) {
+            resolve(dataUrl);
+          }
+        };
+        img.onerror = function() {
+          reject(new Error('unreadable image'));
+        };
+        img.src = dataUrl;
+      });
+    }
+
+    function applyLogoSrc(dataUrl) {
+      logoDataUrl = (dataUrl && String(dataUrl).indexOf('data:image/') === 0) ? String(dataUrl) : '';
+      const img = document.getElementById('logoImg');
+      if (!img) return;
+      if (logoDataUrl) {
+        img.src = logoDataUrl;
+        img.classList.remove('hidden');
+        document.getElementById('logoPlaceholder').classList.add('hidden');
+        document.getElementById('logoUpload').classList.add('has-logo');
+      } else {
+        img.removeAttribute('src');
+        img.classList.add('hidden');
+        document.getElementById('logoPlaceholder').classList.remove('hidden');
+        document.getElementById('logoUpload').classList.remove('has-logo');
+      }
+    }
+
+    function currentLogoForSave() {
+      return logoDataUrl || '';
+    }
+
+    // Print a copy of the pages in a hidden iframe so the print view is not
+    // wiped on a timer. Browsers that do not block inside print() (Safari,
+    // especially iOS) were able to capture a blank page after 2 seconds.
+    function printHtmlDocument(bodyHtml, onDone) {
+      const stale = document.querySelectorAll('iframe[data-print-frame]');
+      for (let i = 0; i < stale.length; i++) stale[i].remove();
+
+      const iframe = document.createElement('iframe');
+      iframe.setAttribute('data-print-frame', '');
+      iframe.setAttribute('title', 'Print document');
+      iframe.style.cssText = 'position:fixed;left:-10000px;top:0;width:800px;height:1100px;border:0;';
+      document.body.appendChild(iframe);
+
+      const frameWin = iframe.contentWindow;
+      const frameDoc = frameWin.document;
+      let css = '';
+      const styleNodes = document.querySelectorAll('style');
+      for (let s = 0; s < styleNodes.length; s++) css += styleNodes[s].textContent;
+      frameDoc.open();
+      frameDoc.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title> </title><style>' + css + '</style></head><body>' + bodyHtml + '</body></html>');
+      frameDoc.close();
+
+      const srcSigs = document.querySelectorAll('#printContainer .print-sig-name');
+      const dstSigs = frameDoc.querySelectorAll('.print-sig-name');
+      for (let i = 0; i < dstSigs.length && i < srcSigs.length; i++) {
+        dstSigs[i].style.fontFamily = srcSigs[i].style.fontFamily;
+        dstSigs[i].style.fontSize = srcSigs[i].style.fontSize;
+        dstSigs[i].style.fontWeight = '700';
+      }
+
+      let done = false;
+      const originalTitle = document.title;
+      document.title = ' ';
+      let titleTimer = 0;
+      function finish() {
+        if (done) return;
+        done = true;
+        frameWin.removeEventListener('afterprint', finish);
+        window.removeEventListener('afterprint', finish);
+        window.removeEventListener('focus', onFocus);
+        window.removeEventListener('blur', onBlur);
+        if (titleTimer) clearTimeout(titleTimer);
+        document.title = originalTitle;
+        if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+        const container = document.getElementById('printContainer');
+        if (container) container.innerHTML = '';
+        if (typeof onDone === 'function') onDone();
+      }
+      function onFocus() {
+        setTimeout(finish, 1000);
+      }
+      function onBlur() {
+        window.removeEventListener('blur', onBlur);
+        window.addEventListener('focus', onFocus);
+      }
+      frameWin.addEventListener('afterprint', finish);
+      window.addEventListener('afterprint', finish);
+      window.addEventListener('blur', onBlur);
+      // Restore the tab title eventually, but never tear down the print document on a clock.
+      titleTimer = setTimeout(function() {
+        if (document.title === ' ') document.title = originalTitle;
+      }, 60000);
+
+      const parentPrint = window.print;
+      if (parentPrint && String(parentPrint).indexOf('[native code]') === -1) {
+        parentPrint.call(frameWin);
+      } else {
+        frameWin.print();
+      }
+    }
+
     // Keep top Client/Company Name and bottom Client Name in sync
     function syncClientName(el) {
       var billTo = document.getElementById('billTo');
@@ -1204,12 +1463,10 @@
 
     // Init
     document.addEventListener('DOMContentLoaded', () => {
-      const today = new Date().toISOString().slice(0, 10);
+      const todayDate = new Date();
+      const today = localISODate(todayDate);
       document.getElementById('invoiceDate').value = today;
-
-      const due = new Date();
-      due.setDate(due.getDate() + 30);
-      document.getElementById('dueDate').value = due.toISOString().slice(0, 10);
+      document.getElementById('dueDate').value = localISODate(addLocalDays(todayDate, 30));
 
       document.getElementById('invoiceNumber').value = randomInvoiceNumber();
       document.getElementById('sigDate').value = today;
@@ -1231,25 +1488,31 @@
 
     // Logo handling
     function handleLogo(e) {
-      const file = e.target.files[0];
+      const file = e.target.files && e.target.files[0];
       if (!file) return;
+      if (file.type && file.type.indexOf('image/') !== 0) {
+        alert('Please choose an image file.');
+        e.target.value = '';
+        return;
+      }
       const reader = new FileReader();
-      reader.onload = (ev) => {
-        const img = document.getElementById('logoImg');
-        img.src = ev.target.result;
-        img.classList.remove('hidden');
-        document.getElementById('logoPlaceholder').classList.add('hidden');
-        document.getElementById('logoUpload').classList.add('has-logo');
+      reader.onload = function(ev) {
+        prepareLogoDataUrl(ev.target.result).then(function(dataUrl) {
+          applyLogoSrc(dataUrl);
+        }).catch(function() {
+          alert('Could not read that image. Please try a different file.');
+        });
+      };
+      reader.onerror = function() {
+        alert('Could not read that image. Please try a different file.');
       };
       reader.readAsDataURL(file);
     }
 
     function removeLogo() {
-      document.getElementById('logoImg').src = '';
-      document.getElementById('logoImg').classList.add('hidden');
-      document.getElementById('logoPlaceholder').classList.remove('hidden');
-      document.getElementById('logoUpload').classList.remove('has-logo');
-      document.getElementById('logoInput').value = '';
+      applyLogoSrc('');
+      const input = document.getElementById('logoInput');
+      if (input) input.value = '';
     }
 
     // Addresses (1–10)
@@ -1320,7 +1583,7 @@
 
     function addItem() {
       const id = nextItemId++;
-      items.push({ id, description: '', qty: 1, rate: 0 });
+      items.push({ id, description: '', qty: 1, rate: 0, amount: 0 });
       renderItems();
       recalculate();
     }
@@ -1336,25 +1599,32 @@
       const item = items.find(i => i.id === id);
       if (!item) return;
 
+      const row = document.querySelector('tr[data-item-id="' + id + '"]');
+      const rateInput = row ? row.querySelector('.rate-input') : null;
+      const amountInput = row ? row.querySelector('.amount-input') : null;
+      const qtyInput = row ? row.querySelector('.qty-input') : null;
+
       if (field === 'amount') {
-        // User edited Amount directly → adjust Rate so Qty × Rate = Amount
-        const amount = parseFloat(value) || 0;
-        const qty = item.qty || 1;
-        item.rate = Math.round((amount / qty) * 100) / 100;
-        // Update the rate input in the same row without full re-render
-        const row = document.querySelector(`tr[data-item-id="${id}"]`);
-        if (row) {
-          const rateInput = row.querySelector('.rate-input');
-          if (rateInput) rateInput.value = item.rate;
+        // Keep the typed amount. Store an exact rate so qty × rate rounds back to it.
+        if (item.qty > 0) {
+          const amount = roundMoney(clampNonNegative(value));
+          item.amount = amount;
+          item.rate = amount / item.qty;
+          if (rateInput) rateInput.value = formatRateForInput(item.rate);
+          if (amountInput && (Number(value) < 0 || (value !== '' && roundMoney(value) !== amount))) {
+            amountInput.value = amount.toFixed(2);
+          }
+        } else {
+          item.amount = 0;
+          if (amountInput) amountInput.value = '0.00';
         }
       } else if (field === 'qty' || field === 'rate') {
-        item[field] = parseFloat(value) || 0;
-        // Update amount display in the same row
-        const row = document.querySelector(`tr[data-item-id="${id}"]`);
-        if (row) {
-          const amountInput = row.querySelector('.amount-input');
-          if (amountInput) amountInput.value = (item.qty * item.rate).toFixed(2);
-        }
+        const clamped = clampNonNegative(value);
+        item[field] = clamped;
+        const edited = field === 'qty' ? qtyInput : rateInput;
+        if (edited && Number(value) < 0) edited.value = String(clamped);
+        item.amount = roundMoney(item.qty * item.rate);
+        if (amountInput) amountInput.value = item.amount.toFixed(2);
       } else {
         item[field] = value;
       }
@@ -1366,7 +1636,8 @@
       tbody.innerHTML = '';
 
       items.forEach(item => {
-        const amount = (item.qty * item.rate).toFixed(2);
+        if (item.amount == null) item.amount = roundMoney((Number(item.qty) || 0) * (Number(item.rate) || 0));
+        const amount = lineAmount(item).toFixed(2);
         const tr = document.createElement('tr');
         tr.setAttribute('data-item-id', item.id);
         tr.innerHTML = `
@@ -1374,7 +1645,7 @@
                      oninput="updateItem(${item.id}, 'description', this.value)" /></td>
           <td><input class="qty-input" type="number" min="0" step="0.01" value="${item.qty}"
                      oninput="updateItem(${item.id}, 'qty', this.value)" /></td>
-          <td><input class="rate-input" type="number" min="0" step="0.01" value="${item.rate}"
+          <td><input class="rate-input" type="number" min="0" step="0.01" value="${formatRateForInput(item.rate)}"
                      oninput="updateItem(${item.id}, 'rate', this.value)" /></td>
           <td class="amount-cell">
             <input class="amount-input" type="number" min="0" step="0.01" value="${amount}"
@@ -1387,30 +1658,39 @@
     }
 
     function recalculate() {
-      const subtotal = items.reduce((sum, i) => sum + (i.qty * i.rate), 0);
-      const taxRate = parseFloat(document.getElementById('taxRate').value) || 0;
-      const discount = parseFloat(document.getElementById('discount').value) || 0;
-      const taxAmount = subtotal * (taxRate / 100);
-      const grand = Math.max(0, subtotal + taxAmount - discount);
-
-      document.getElementById('subtotal').textContent = formatMoney(subtotal);
-      document.getElementById('taxAmount').textContent = formatMoney(taxAmount);
-      document.getElementById('grandTotal').textContent = formatMoney(grand);
+      const totals = computeTotals(
+        items,
+        document.getElementById('taxRate').value,
+        document.getElementById('discount').value
+      );
+      document.getElementById('subtotal').textContent = formatMoney(totals.subtotal);
+      document.getElementById('taxAmount').textContent = formatMoney(totals.taxAmount);
+      document.getElementById('grandTotal').textContent = formatMoney(totals.grand);
     }
 
-    function formatMoney(num) {
-      const cur = document.getElementById('currency').value;
+    function formatMoney(num, currency) {
+      const cur = currency || document.getElementById('currency').value;
       const sym = currencySymbols[cur] || '$';
-      return sym + parseFloat(num).toFixed(2);
+      return sym + roundMoney(num).toFixed(2);
     }
 
     function escapeHtml(str) {
-      if (!str) return '';
+      if (str === null || str === undefined) return '';
       return String(str)
         .replace(/&/g, '&amp;')
         .replace(/</g, '&lt;')
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
+    }
+
+    function normalizeItem(raw) {
+      const item = Object.assign({ description: '', qty: 1, rate: 0, amount: 0 }, raw);
+      item.qty = clampNonNegative(item.qty == null ? 1 : item.qty);
+      item.rate = clampNonNegative(item.rate);
+      if (item.qty === 0) item.amount = 0;
+      else if (item.amount == null || item.amount === '') item.amount = roundMoney(item.qty * item.rate);
+      else item.amount = roundMoney(clampNonNegative(item.amount));
+      return item;
     }
 
     // PDF / Print — generates one page per service address
@@ -1435,14 +1715,12 @@
         sigDate: document.getElementById('sigDate').value || '',
         sigFont: document.getElementById('sigFont').value,
         sigSize: document.getElementById('sigSize').value + 'px',
-        logo: document.getElementById('logoImg').src || null,
-        items: items.slice(),
+        logo: currentLogoForSave(),
+        items: items.map(normalizeItem),
         addresses: addresses.slice()
       };
 
-      const subtotal = data.items.reduce((sum, i) => sum + (i.qty * i.rate), 0);
-      const taxAmount = subtotal * (data.taxRate / 100);
-      const grand = Math.max(0, subtotal + taxAmount - data.discount);
+      const totals = computeTotals(data.items, data.taxRate, data.discount);
       const sym = currencySymbols[data.currency] || '$';
 
       // Only print one page per real address (max 10). If none, print exactly 1 page.
@@ -1454,10 +1732,7 @@
       }
 
       pages.forEach((addr, idx) => {
-        const baseNum = parseInt(data.invoiceNumber, 10) || 0;
-        const pageNum = pages.length > 1
-          ? (baseNum + idx)
-          : data.invoiceNumber;
+        const pageNum = formatDocumentNumber(data.invoiceNumber, idx, pages.length);
 
         const page = document.createElement('div');
         page.className = 'invoice-page';
@@ -1466,13 +1741,14 @@
 
         let rowsHtml = '';
         data.items.forEach(item => {
-          const amount = (item.qty * item.rate).toFixed(2);
+          const amount = lineAmount(item).toFixed(2);
+          const rateText = roundMoney(item.rate).toFixed(2);
           rowsHtml += `
             <tr>
               <td>${escapeHtml(item.description) || '&nbsp;'}</td>
-              <td>${item.qty}</td>
-              <td>${sym}${parseFloat(item.rate).toFixed(2)}</td>
-              <td>${sym}${amount}</td>
+              <td class="print-qty">${item.qty}</td>
+              <td class="print-rate">${sym}${rateText}</td>
+              <td class="print-amount">${sym}${amount}</td>
             </tr>`;
         });
 
@@ -1493,7 +1769,7 @@
               ${data.companyName ? `<div style="font-size:15px;font-weight:600;margin-top:4px;color:#0f172a;">${escapeHtml(data.companyName)}</div>` : ''}
             </div>
             <div class="print-meta">
-              <div><strong>Invoice #</strong> ${escapeHtml(pageNum)}</div>
+              <div><strong>Invoice #</strong> <span class="print-doc-number">${escapeHtml(pageNum)}</span></div>
               <div><strong>Date</strong> ${escapeHtml(data.invoiceDate)}</div>
               <div><strong>Due Date</strong> ${escapeHtml(data.dueDate)}</div>
               ${data.paymentTerms ? `<div><strong>Terms</strong> ${escapeHtml(data.paymentTerms)}</div>` : ''}
@@ -1526,20 +1802,20 @@
           <div class="print-totals">
             <div class="print-total-row">
               <span>Subtotal</span>
-              <span>${sym}${subtotal.toFixed(2)}</span>
+              <span class="print-subtotal">${sym}${totals.subtotal.toFixed(2)}</span>
             </div>
             <div class="print-total-row">
               <span>Tax (${data.taxRate}%)</span>
-              <span>${sym}${taxAmount.toFixed(2)}</span>
+              <span>${sym}${totals.taxAmount.toFixed(2)}</span>
             </div>
-            ${data.discount > 0 ? `
+            ${totals.discount > 0 ? `
             <div class="print-total-row">
               <span>Discount</span>
-              <span>-${sym}${data.discount.toFixed(2)}</span>
+              <span>-${sym}${roundMoney(totals.discount).toFixed(2)}</span>
             </div>` : ''}
             <div class="print-total-row grand">
               <span>Total Due</span>
-              <span>${sym}${grand.toFixed(2)}</span>
+              <span class="print-grand">${sym}${totals.grand.toFixed(2)}</span>
             </div>
           </div>
 
@@ -1567,7 +1843,7 @@
             </div>
             <div class="print-signature-lines">
               <div class="print-sig-line" data-label="Signature">
-                <span class="print-sig-name" style="font-family:${data.sigFont};font-size:${data.sigSize};font-weight:700;">${escapeHtml(data.pocName)}</span>
+                <span class="print-sig-name" style="${signatureStyleAttr(data.sigFont, data.sigSize)}">${escapeHtml(data.pocName)}</span>
               </div>
               <div class="print-sig-line" data-label="Date">
                 <span style="font-size:14px;padding-bottom:2px;">${escapeHtml(data.sigDate)}</span>
@@ -1579,23 +1855,11 @@
           </div>
         `;
 
+        applyPrintSignature(page, data.sigFont, data.sigSize);
         container.appendChild(page);
       });
 
-      // Temporarily blank the page title so browsers don't print the app name in headers
-
-      const originalTitle = document.title;
-      document.title = ' ';
-
-      window.print();
-
-      const cleanup = () => {
-        container.innerHTML = '';
-        document.title = originalTitle;
-        window.removeEventListener('afterprint', cleanup);
-      };
-      window.addEventListener('afterprint', cleanup);
-      setTimeout(cleanup, 2000);
+      printHtmlDocument(container.innerHTML);
     }
 
     // Draft save/load (localStorage)
@@ -1618,11 +1882,29 @@
         sigFont: document.getElementById('sigFont').value,
         sigSize: document.getElementById('sigSize').value,
         addresses: addresses,
-        items: items,
-        logo: document.getElementById('logoImg').src || null
+        items: items.map(normalizeItem),
+        logo: currentLogoForSave()
       };
-      localStorage.setItem('localInvoiceDraft', JSON.stringify(data));
-      alert('Draft saved locally in your browser.');
+      const write = function(payload) {
+        try {
+          localStorage.setItem('localInvoiceDraft', JSON.stringify(payload));
+        } catch (err) {
+          alert('Could not save this draft. Browser storage is full, usually because the logo is too large. Remove the logo or choose a smaller image, then try again.');
+          return;
+        }
+        alert('Draft saved locally in your browser.');
+      };
+      if (data.logo && data.logo.length > MAX_LOGO_CHARS) {
+        prepareLogoDataUrl(data.logo).then(function(smaller) {
+          applyLogoSrc(smaller);
+          data.logo = currentLogoForSave();
+          write(data);
+        }).catch(function() {
+          write(data);
+        });
+        return;
+      }
+      write(data);
     }
 
     function loadDraft() {
@@ -1639,7 +1921,7 @@
         document.getElementById('paymentTerms').value = data.paymentTerms || '';
         document.getElementById('companyName').value = data.companyName || '';
         document.getElementById('billTo').value = data.billTo || '';
-        document.getElementById('notes').value = data.notes || '';
+        document.getElementById('notes').value = data.notes != null ? data.notes : '';
         document.getElementById('taxRate').value = data.taxRate || 0;
         document.getElementById('discount').value = data.discount || 0;
         document.getElementById('currency').value = data.currency || 'USD';
@@ -1663,7 +1945,7 @@
         }
         nextAddressId = maxAddrId + 1;
 
-        items = data.items && data.items.length ? data.items : [{ id: 1, description: '', qty: 1, rate: 0 }];
+        items = data.items && data.items.length ? data.items.map(normalizeItem) : [{ id: 1, description: '', qty: 1, rate: 0, amount: 0 }];
         var maxItemId = 0;
         for (var ii = 0; ii < items.length; ii++) {
           if (typeof items[ii].id !== 'number') items[ii].id = ++maxItemId;
@@ -1671,11 +1953,10 @@
         }
         nextItemId = maxItemId + 1;
 
-        if (data.logo) {
-          document.getElementById('logoImg').src = data.logo;
-          document.getElementById('logoImg').classList.remove('hidden');
-          document.getElementById('logoPlaceholder').classList.add('hidden');
-          document.getElementById('logoUpload').classList.add('has-logo');
+        if (data.logo && String(data.logo).indexOf('data:image/') === 0) {
+          applyLogoSrc(data.logo);
+        } else {
+          removeLogo();
         }
 
         renderAddresses();
@@ -1695,22 +1976,23 @@
       nextAddressId = 1;
       nextItemId = 1;
       document.getElementById('invoiceNumber').value = randomInvoiceNumber();
-      document.getElementById('companyName').value = '';
-      document.getElementById('billTo').value = '';
-      document.getElementById('notes').value = '';
-      document.getElementById('taxRate').value = 0;
-      document.getElementById('discount').value = 0;
-      document.getElementById('paymentTerms').value = '';
-      // also reset date to today
-      const today = new Date().toISOString().slice(0, 10);
+      resetControl('companyName');
+      resetControl('billTo');
+      resetControl('notes');
+      resetControl('taxRate');
+      resetControl('discount');
+      resetControl('paymentTerms');
+      resetControl('currency');
+      resetControl('sigFont');
+      resetControl('sigSize');
+      const todayDate = new Date();
+      const today = localISODate(todayDate);
       document.getElementById('invoiceDate').value = today;
-      const due = new Date();
-      due.setDate(due.getDate() + 30);
-      document.getElementById('dueDate').value = due.toISOString().slice(0, 10);
-      document.getElementById('pocName').value = '';
-      document.getElementById('pocTitle').value = '';
-      document.getElementById('clientName').value = '';
-      document.getElementById('sigDate').value = new Date().toISOString().slice(0, 10);
+      document.getElementById('dueDate').value = localISODate(addLocalDays(todayDate, 30));
+      resetControl('pocName');
+      resetControl('pocTitle');
+      resetControl('clientName');
+      document.getElementById('sigDate').value = today;
       updateSignaturePreview();
       removeLogo();
       addItem();
