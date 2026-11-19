@@ -10,8 +10,8 @@ Maintained by [@connor-sec](https://github.com/connor-sec).
 | **Ethical Work Order** | [`Ethical_WorkOrder.html`](Ethical_WorkOrder.html) | Professional multi-address work orders with job details, checklists, work-performed notes, signature block |
 
 <p align="center">
-    <img src="Ethical_Invoice_logo.png" alt="Ethical Invoice" width="380">
-    <img src="Ethical_WorkOrder_logo.png" alt="Ethical Work Order" width="380">
+    <img src="assets/Ethical_Invoice_logo.png" alt="Ethical Invoice" width="380">
+    <img src="assets/Ethical_WorkOrder_logo.png" alt="Ethical Work Order" width="380">
 </p>
 
 ## Usage
